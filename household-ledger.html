@@ -1,0 +1,1762 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Household Ledger</title>
+
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap');
+  html, body { margin: 0; padding: 0; background: #EDF1EC; }
+
+  :root {
+    --paper: #EDF1EC;
+    --paper-alt: #E1E8E0;
+    --surface: #FBFCFA;
+    --ink: #17241F;
+    --ink-soft: #4E5D57;
+    --rule: #C7D1C6;
+    --income: #2F6F5E;
+    --expense: #7A3B4E;
+    --expense-soft: #A8687C;
+    --expense-deep: #58283A;
+    --savings: #96702F;
+  }
+
+  * { box-sizing: border-box; }
+
+  .ledger-root {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'Inter', sans-serif;
+    padding: 32px clamp(16px, 4vw, 48px) 48px;
+    min-height: 100%;
+    max-width: 1440px;
+    margin: 0 auto;
+  }
+
+  .loading-state {
+    font-family: 'IBM Plex Mono', monospace;
+    color: var(--ink-soft);
+    padding: 64px 0;
+    text-align: center;
+  }
+
+  .masthead { position: relative; margin-bottom: 28px; padding-bottom: 18px; border-bottom: 1px solid var(--rule); }
+  .masthead-eyebrow {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    margin-bottom: 6px;
+  }
+  .masthead h1 {
+    font-family: 'Source Serif 4', serif;
+    font-weight: 600;
+    font-size: clamp(22px, 3.4vw, 32px);
+    margin: 0;
+    line-height: 1.2;
+    max-width: 640px;
+  }
+  .save-pill {
+    position: absolute;
+    top: 0; right: 0;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--ink-soft);
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    padding: 4px 10px;
+    border-radius: 100px;
+  }
+  .save-pill.saved { color: var(--income); border-color: var(--income); }
+
+  .strip {
+    display: flex;
+    align-items: stretch;
+    gap: 10px;
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    padding: 18px clamp(10px, 2.5vw, 22px);
+    margin-bottom: 6px;
+    position: relative;
+    overflow: hidden;
+    flex-wrap: wrap;
+  }
+  .strip::before {
+    content: "";
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 6px;
+    background-image: radial-gradient(circle at 6px 0, transparent 5px, var(--paper) 6px);
+    background-size: 12px 6px;
+    background-repeat: repeat-x;
+  }
+  .strip-item { display: flex; flex-direction: column; gap: 4px; min-width: 108px; }
+  .strip-final { padding-left: 6px; }
+  .strip-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--ink-soft);
+  }
+  .strip-value {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: clamp(18px, 2.6vw, 24px);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+  .strip-value.income { color: var(--income); }
+  .strip-value.expense { color: var(--expense); }
+  .strip-value.savings { color: var(--savings); }
+  .strip-value.negative { color: var(--expense-deep); }
+  .strip-op {
+    align-self: center;
+    font-family: 'IBM Plex Mono', monospace;
+    color: var(--ink-soft);
+    font-size: 20px;
+  }
+
+  .bar {
+    display: flex;
+    height: 10px;
+    border-radius: 100px;
+    overflow: hidden;
+    background: var(--paper-alt);
+    margin: 14px 2px 8px;
+  }
+  .bar-seg { height: 100%; transition: width 0.3s ease; }
+  .bar-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    margin-bottom: 30px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--ink-soft);
+  }
+  .legend-item { display: flex; align-items: center; gap: 6px; }
+  .legend-item i { width: 8px; height: 8px; border-radius: 2px; display: inline-block; }
+
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 22px;
+  }
+  @media (max-width: 760px) {
+    .grid { grid-template-columns: 1fr; }
+  }
+
+  .ledger-panel {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    padding: 20px 20px 16px;
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 22px;
+  }
+  .wide-panel { margin-bottom: 22px; }
+  .grid .ledger-panel { margin-bottom: 0; }
+
+  .panel-head h2 {
+    font-family: 'Source Serif 4', serif;
+    font-size: 19px;
+    margin: 0 0 4px;
+  }
+  .panel-sub { margin: 0 0 16px; font-size: 13px; color: var(--ink-soft); line-height: 1.45; }
+  .panel-sub.small { margin-top: -8px; }
+  .sub-heading {
+    font-family: 'Source Serif 4', serif;
+    font-size: 16px;
+    margin: 18px 0 2px;
+    border-top: 1px solid var(--rule);
+    padding-top: 16px;
+  }
+
+  .balance-inputs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+    margin-bottom: 8px;
+  }
+  @media (max-width: 640px) {
+    .balance-inputs { grid-template-columns: 1fr; }
+  }
+  .balance-block {
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    padding: 14px 16px;
+  }
+  .field-label {
+    display: block;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--ink-soft);
+    margin-bottom: 6px;
+  }
+  .balance-current {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--rule);
+  }
+  .transfer-note {
+    display: block;
+    margin-top: 6px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--savings);
+  }
+  .shortfall-note {
+    display: block;
+    margin-top: 6px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--expense-deep);
+  }
+
+  .table-wrap { display: flex; flex-direction: column; }
+.row {
+  display: grid;
+  grid-template-columns: 20px 1fr 108px 26px;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--rule);
+}
+  .row.dragging {
+    opacity: 0.4;
+  }
+  .row.drag-over-target {
+    box-shadow: inset 0 2px 0 var(--ink);
+  }
+.row.with-type { 
+  grid-template-columns: 20px 1fr 140px 108px 26px;
+}
+.row.extra-row { 
+  grid-template-columns: 20px 20px 1fr 110px 130px 108px 26px;
+}
+.row.annual-row {
+  grid-template-columns: 20px 20px 1fr 128px 108px 84px 26px;
+}
+
+.drag-handle {
+  cursor: grab;
+  color: var(--rule);
+  font-size: 14px;
+  font-weight: bold;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  letter-spacing: -1px;
+}
+.drag-handle:active {
+  cursor: grabbing;
+  color: var(--ink-soft);
+}
+  @media (max-width: 640px) {
+    .row.extra-row { grid-template-columns: 1fr; row-gap: 6px; padding-bottom: 12px; }
+    .row.annual-row { grid-template-columns: 1fr; row-gap: 6px; padding-bottom: 12px; }
+  }
+  .row-head {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--ink-soft);
+    border-bottom: 1px solid var(--ink-soft);
+    padding-bottom: 8px;
+  }
+  .row-head .num { text-align: right; }
+  .empty-row { padding: 14px 0; font-size: 13px; color: var(--ink-soft); font-style: italic; }
+
+  .cell-input {
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    color: var(--ink);
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid transparent;
+    padding: 4px 2px;
+    width: 100%;
+    outline: none;
+  }
+  .cell-input:focus { border-bottom-color: var(--ink-soft); }
+  .num-input {
+    font-family: 'IBM Plex Mono', monospace;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+  .amount-field { display: flex; align-items: center; gap: 2px; justify-content: flex-end; }
+  .amount-field .dollar { font-family: 'IBM Plex Mono', monospace; color: var(--ink-soft); font-size: 13px; }
+  .amount-field.big { justify-content: flex-start; }
+
+  .mini-select {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--ink);
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 100px;
+    padding: 5px 8px;
+    outline: none;
+    width: 100%;
+  }
+
+  .type-toggle {
+    display: flex;
+    border: 1px solid var(--rule);
+    border-radius: 100px;
+    overflow: hidden;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+  }
+  .type-toggle button {
+    flex: 1;
+    border: none;
+    background: transparent;
+    color: var(--ink-soft);
+    padding: 5px 8px;
+    cursor: pointer;
+  }
+  .type-toggle button.active { background: var(--ink); color: var(--paper); }
+  .type-toggle.wide { max-width: 260px; margin-bottom: 12px; font-size: 12px; }
+  .type-toggle.wide button { padding: 8px 10px; }
+
+  .row-remove {
+    border: none;
+    background: transparent;
+    color: var(--ink-soft);
+    font-size: 18px;
+    cursor: pointer;
+    line-height: 1;
+    padding: 2px 4px;
+  }
+  .row-remove:hover { color: var(--expense); }
+
+  .row-select {
+    width: 15px;
+    height: 15px;
+    cursor: pointer;
+    accent-color: var(--ink);
+  }
+  .row-select:disabled { cursor: not-allowed; opacity: 0.4; }
+
+  .row.paid {
+    background: var(--paper-alt);
+    opacity: 0.6;
+  }
+  .row.paid .num-input,
+  .row.paid .amount-field .dollar {
+    text-decoration: line-through;
+  }
+  .paid-tag {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--ink-soft);
+  }
+
+  .settle-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 10px;
+  }
+
+  .row.dimmed {
+    background: var(--paper-alt);
+    opacity: 0.55;
+  }
+  .date-cell {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .date-input {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+  }
+  .due-badge {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--ink-soft);
+  }
+  .due-badge.soon { color: var(--savings); font-weight: 600; }
+  .due-badge.overdue { color: var(--expense-deep); font-weight: 600; }
+
+  .add-btn.small {
+    padding: 4px 8px;
+    font-size: 10px;
+    white-space: nowrap;
+  }
+
+  .panel-foot {
+    margin-top: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .add-btn {
+      border: 1px dashed var(--ink-soft);
+      background: transparent;
+      color: var(--ink-soft);
+      border-radius: 100px;
+      padding: 6px 14px;
+      font-size: 12px;
+      font-family: 'Inter', sans-serif;
+      cursor: pointer;
+    }
+    .add-btn:hover { border-color: var(--ink); color: var(--ink); }
+    .add-btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+  }
+
+  .add-btn:disabled:hover {
+      border-color: var(--ink-soft);
+      color: var(--ink-soft);
+  }
+
+  .add-btn.danger {
+      border-style: solid;
+      border-color: var(--expense-soft);
+      color: var(--expense);
+  }
+
+  .add-btn.danger:hover {
+      border-color: var(--expense);
+  }
+  .foot-note {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    color: var(--ink-soft);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .savings-panel .amount-field.big .num-input { font-size: 22px; max-width: 120px; }
+  .savings-controls { display: flex; flex-direction: column; gap: 4px; }
+  .percent { font-family: 'IBM Plex Mono', monospace; color: var(--ink-soft); font-size: 18px; }
+
+  .balance-block .amount-field.big .num-input { font-size: 20px; max-width: 160px; }
+
+  .savings-summary, .balance-current {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .savings-summary { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--rule); }
+  .summary-label {
+    display: block;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--ink-soft);
+  }
+  .summary-value {
+    display: block;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 22px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+  .summary-value.income { color: var(--income); }
+  .summary-value.savings { color: var(--savings); }
+  .summary-value.negative { color: var(--expense-deep); }
+
+  .warning {
+    margin-top: 14px;
+    font-size: 13px;
+    color: var(--expense-deep);
+    background: #F3E4E8;
+    border: 1px solid var(--expense-soft);
+    border-radius: 6px;
+    padding: 10px 12px;
+    line-height: 1.4;
+  }
+
+  .ledger-footer {
+    margin-top: 8px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--ink-soft);
+    text-align: center;
+  }
+
+  input[type=number]::-webkit-inner-spin-button,
+  input[type=number]::-webkit-outer-spin-button {
+    opacity: 0.4;
+  }
+
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+const { useState, useEffect, useRef, useMemo, useCallback } = React;
+
+const STORAGE_KEY = "household-ledger-v1";
+
+const genId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+const defaultData = () => ({
+  monthlyItems: [
+    { id: genId(), name: "Mortgage / Rent", type: "fixed", amount: 1800 },
+    { id: genId(), name: "Car payment", type: "fixed", amount: 420 },
+    { id: genId(), name: "Netflix", type: "fixed", amount: 17.99 },
+    { id: genId(), name: "Spotify", type: "fixed", amount: 11.99 },
+    { id: genId(), name: "Groceries", type: "variable", amount: 650 },
+    { id: genId(), name: "Gas (both cars)", type: "variable", amount: 220 },
+    { id: genId(), name: "Dog food & supplies", type: "variable", amount: 90 },
+  ],
+  annualItems: [
+    { id: genId(), name: "Propane tank lease", amount: 240, dueDate: "2026-10-01", movedThisCycle: false },
+    { id: genId(), name: "Ring subscription", amount: 40, dueDate: "2026-08-05", movedThisCycle: false },
+    { id: genId(), name: "Garbage disposal service", amount: 300, dueDate: "2027-01-15", movedThisCycle: false },
+    { id: genId(), name: "Phone bill (annual)", amount: 960, dueDate: "2026-09-01", movedThisCycle: false },
+  ],
+  incomeItems: [
+    { id: genId(), name: "My take-home pay", amount: 4200 },
+    { id: genId(), name: "Wife's take-home pay (avg. of 2 checks)", amount: 3100 },
+  ],
+  savingsMode: "percent",
+  savingsValue: 15,
+  accounts: {
+    checking: 2500,
+    savings: 12000,
+  },
+  extraItems: [
+    { id: genId(), name: "Car repair", account: "checking", direction: "subtract", amount: 350, paid: true },
+    { id: genId(), name: "Tax refund", account: "savings", direction: "add", amount: 800, paid: true },
+    { id: genId(), name: "Vet visit (pending)", account: "checking", direction: "subtract", amount: 120, paid: false },
+  ],
+});
+
+const fmt = (n) =>
+  (Number.isFinite(n) ? n : 0).toLocaleString("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+
+const sum = (arr) => arr.reduce((acc, it) => acc + (parseFloat(it.amount) || 0), 0);
+
+const signedTotal = (items, account) =>
+  items
+    .filter((i) => i.account === account)
+    .reduce((acc, i) => {
+      const amt = parseFloat(i.amount) || 0;
+      return acc + (i.direction === "add" ? amt : -amt);
+    }, 0);
+
+    function useSortableList(onReorder) {
+      const [draggingId, setDraggingId] = useState(null);
+      const [overId, setOverId] = useState(null);
+
+      const startDrag = useCallback((id) => {
+        setDraggingId(id);
+      }, []);
+
+      // Only updates which row is currently highlighted as the drop target.
+      // Does NOT reorder the underlying data — that happens once, on drop.
+      const dragOverRow = useCallback((id) => {
+        setOverId((prev) => (prev === id ? prev : id));
+      }, []);
+
+      const dropOnRow = useCallback(
+        (id) => {
+          setDraggingId((current) => {
+            if (current && current !== id) {
+              onReorder(current, id);
+            }
+            return null;
+          });
+          setOverId(null);
+        },
+        [onReorder]
+      );
+
+      const endDrag = useCallback(() => {
+        setDraggingId(null);
+        setOverId(null);
+      }, []);
+
+      return { draggingId, overId, startDrag, dragOverRow, dropOnRow, endDrag };
+    }
+
+function LineItemTable({
+  title,
+  subtitle,
+  items,
+  onChange,
+  onAdd,
+  onRemove,
+  onReorder,
+  showType,
+  addLabel,
+  emptyLabel,
+  footerNote,
+}) {
+  const { draggingId, overId, startDrag, dragOverRow, dropOnRow, endDrag } = useSortableList(onReorder);
+  return (
+    <section className="ledger-panel">
+      <div className="panel-head">
+        <h2>{title}</h2>
+        {subtitle && <p className="panel-sub">{subtitle}</p>}
+      </div>
+
+<div className="table-wrap">
+        <div className={`row row-head ${showType ? "with-type" : ""}`}>
+          <span /> {/* <-- NEW: Empty space for the handle column */}
+          <span>Item</span>
+          {showType && <span>Type</span>}
+          <span className="num">Amount</span>
+          <span className="row-action" />
+        </div>
+
+        {items.length === 0 && <div className="empty-row">{emptyLabel}</div>}
+
+        {items.map((item) => (
+          <div 
+            key={item.id}
+            className={`row ${showType ? "with-type" : ""} ${draggingId === item.id ? "dragging" : ""} ${overId === item.id && draggingId && draggingId !== item.id ? "drag-over-target" : ""}`}
+            onDragOver={(e) => {
+              if (!draggingId) return;
+              e.preventDefault();
+              dragOverRow(item.id);
+            }}
+            onDrop={(e) => {
+              if (!draggingId) return;
+              e.preventDefault();
+              dropOnRow(item.id);
+            }}
+          >
+            <div
+              className="drag-handle"
+              title="Drag to reorder"
+              draggable
+              onDragStart={(e) => {
+                e.dataTransfer.effectAllowed = "move";
+                e.dataTransfer.setData("text/plain", item.id);
+                const rowEl = e.currentTarget.closest(".row");
+                if (rowEl && e.dataTransfer.setDragImage) {
+                  e.dataTransfer.setDragImage(rowEl, 20, 20);
+                }
+                startDrag(item.id);
+              }}
+              onDragEnd={endDrag}
+            >
+              ⋮⋮
+            </div>
+
+            <input
+              className="cell-input name-input"
+              type="text"
+              value={item.name}
+              placeholder="Item name"
+              onChange={(e) => onChange(item.id, { name: e.target.value })}
+            />
+
+            {showType && (
+              <div className="type-toggle">
+                <button
+                  type="button"
+                  className={item.type === "fixed" ? "active" : ""}
+                  onClick={() => onChange(item.id, { type: "fixed" })}
+                >
+                  Fixed
+                </button>
+                <button
+                  type="button"
+                  className={item.type === "variable" ? "active" : ""}
+                  onClick={() => onChange(item.id, { type: "variable" })}
+                >
+                  Estimate
+                </button>
+              </div>
+            )}
+
+            <div className="amount-field">
+              <span className="dollar">$</span>
+              <input
+                className="cell-input num-input"
+                type="number"
+                step="0.01"
+                min="0"
+                inputMode="decimal"
+                value={item.amount}
+                onChange={(e) =>
+                  onChange(item.id, { amount: e.target.value === "" ? "" : parseFloat(e.target.value) })
+                }
+              />
+            </div>
+
+            <button className="row-remove" onClick={() => onRemove(item.id)} aria-label={`Remove ${item.name}`}>
+              ×
+            </button>
+          </div>
+        ))}
+      </div>
+
+      <div className="panel-foot">
+        <button className="add-btn" onClick={onAdd}>
+          + {addLabel}
+        </button>
+        {footerNote && <span className="foot-note">{footerNote}</span>}
+      </div>
+    </section>
+  );
+}
+
+function ExtraItemsTable({
+    items,
+    onChange,
+    onAdd,
+    onRemove,
+    onReorder,
+    onClearAll,
+    onUndoClear,
+    canUndoClear,
+    onMarkPaid,
+    onMarkUnpaid,
+    onUndoPaid,
+    canUndoPaid,
+}) {
+  const { draggingId, overId, startDrag, dragOverRow, dropOnRow, endDrag } = useSortableList(onReorder);
+  const [selectedIds, setSelectedIds] = useState(() => new Set());
+
+  const toggleSelect = (id) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const handleRemove = (id) => {
+    setSelectedIds((prev) => {
+      if (!prev.has(id)) return prev;
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
+    onRemove(id);
+  };
+
+  const handleMarkPaid = () => {
+    if (selectedIds.size === 0) return;
+    onMarkPaid(Array.from(selectedIds));
+    setSelectedIds(new Set());
+  };
+
+  const handleMarkUnpaid = () => {
+    if (selectedIds.size === 0) return;
+    onMarkUnpaid(Array.from(selectedIds));
+    setSelectedIds(new Set());
+  };
+
+  return (
+    <div className="table-wrap extra-table">
+<div className="row extra-row row-head">
+        <span />
+        <span />
+        <span>Item</span>
+        <span>Account</span>
+        <span>Direction</span>
+        <span className="num">Amount</span>
+        <span className="row-action" />
+      </div>
+
+      {items.length === 0 && (
+        <div className="empty-row">No one-off items yet — log a car repair, a bonus, a big purchase, etc.</div>
+      )}
+
+      {items.map((item) => (
+        <div 
+          key={item.id}
+          className={`row extra-row ${draggingId === item.id ? "dragging" : ""} ${overId === item.id && draggingId && draggingId !== item.id ? "drag-over-target" : ""} ${item.paid ? "paid" : ""}`}
+          onDragOver={(e) => {
+            if (!draggingId) return;
+            e.preventDefault();
+            dragOverRow(item.id);
+          }}
+          onDrop={(e) => {
+            if (!draggingId) return;
+            e.preventDefault();
+            dropOnRow(item.id);
+          }}
+        >
+          <div
+            className="drag-handle"
+            title="Drag to reorder"
+            draggable
+            onDragStart={(e) => {
+              e.dataTransfer.effectAllowed = "move";
+              e.dataTransfer.setData("text/plain", item.id);
+              const rowEl = e.currentTarget.closest(".row");
+              if (rowEl && e.dataTransfer.setDragImage) {
+                e.dataTransfer.setDragImage(rowEl, 20, 20);
+              }
+              startDrag(item.id);
+            }}
+            onDragEnd={endDrag}
+          >
+            ⋮⋮
+          </div>
+
+          <input
+            type="checkbox"
+            className="row-select"
+            checked={selectedIds.has(item.id)}
+            onChange={() => toggleSelect(item.id)}
+            aria-label={item.paid ? `${item.name} (paid) — select to edit again` : `Select ${item.name}`}
+            title={item.paid ? "Select, then click \"Mark Unpaid\" to edit again" : "Select to mark as paid"}
+          />
+
+          <input
+            className="cell-input name-input"
+            type="text"
+            value={item.name}
+            placeholder="e.g. Car repair"
+            disabled={item.paid}
+            onChange={(e) => onChange(item.id, { name: e.target.value })}
+          />
+
+          <select
+            className="mini-select"
+            value={item.account}
+            disabled={item.paid}
+            onChange={(e) => onChange(item.id, { account: e.target.value })}
+          >
+            <option value="checking">Checking</option>
+            <option value="savings">Savings</option>
+          </select>
+
+          <select
+            className="mini-select"
+            value={item.direction}
+            disabled={item.paid}
+            onChange={(e) => onChange(item.id, { direction: e.target.value })}
+          >
+            <option value="subtract">Spent (−)</option>
+            <option value="add">Received (+)</option>
+          </select>
+
+          <div className="amount-field">
+            <span className="dollar">$</span>
+            <input
+              className="cell-input num-input"
+              type="number"
+              step="0.01"
+              min="0"
+              inputMode="decimal"
+              value={item.amount}
+              disabled={item.paid}
+              onChange={(e) =>
+                onChange(item.id, { amount: e.target.value === "" ? "" : parseFloat(e.target.value) })
+              }
+            />
+          </div>
+
+          <button className="row-remove" onClick={() => handleRemove(item.id)} aria-label={`Remove ${item.name}`}>
+            ×
+          </button>
+        </div>
+      ))}
+
+      <div className="panel-foot">
+          <div style={{display: "flex", gap: "8px", flexWrap: "wrap"}}>
+              <button className="add-btn" onClick={onAdd}>
+                  + Add one-off item
+              </button>
+
+              <button
+                  className="add-btn"
+                  onClick={handleMarkPaid}
+                  disabled={selectedIds.size === 0}
+              >
+                  Paid{selectedIds.size > 0 ? ` (${selectedIds.size})` : ""}
+              </button>
+
+              <button
+                  className="add-btn"
+                  onClick={handleMarkUnpaid}
+                  disabled={selectedIds.size === 0}
+                  title="Select paid item(s) above, then click here to unlock them for editing again"
+              >
+                  Mark Unpaid
+              </button>
+
+              <button
+                  className="add-btn"
+                  onClick={onUndoPaid}
+                  disabled={!canUndoPaid}
+              >
+                  Undo Paid
+              </button>
+
+              <button
+                  className="add-btn danger"
+                  onClick={onClearAll}
+                  disabled={items.length === 0}
+              >
+                  Clear All
+              </button>
+
+              <button
+                  className="add-btn"
+                  onClick={onUndoClear}
+                  disabled={!canUndoClear}
+              >
+                  Undo Clear
+              </button>
+          </div>
+      </div>
+    </div>
+  );
+}
+
+function daysUntil(dateStr) {
+  if (!dateStr) return null;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const due = new Date(dateStr + "T00:00:00");
+  if (isNaN(due.getTime())) return null;
+  return Math.round((due - today) / 86400000);
+}
+
+function AnnualBillsTable({
+  items,
+  onChange,
+  onAdd,
+  onRemove,
+  onReorder,
+  addLabel,
+  emptyLabel,
+  footerNote,
+  onMoveToOneOff,
+  onUndim,
+  onUndimSelected,
+  onDimSelected,
+}) {
+  const { draggingId, overId, startDrag, dragOverRow, dropOnRow, endDrag } = useSortableList(onReorder);
+  const [selectedIds, setSelectedIds] = useState(() => new Set());
+
+  const toggleSelect = (id) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const handleUndimSelected = () => {
+    if (selectedIds.size === 0) return;
+    onUndimSelected(Array.from(selectedIds));
+    setSelectedIds(new Set());
+  };
+
+  const handleDimSelected = () => {
+    if (selectedIds.size === 0) return;
+    onDimSelected(Array.from(selectedIds));
+    setSelectedIds(new Set());
+  };
+
+  const handleRemove = (id) => {
+    setSelectedIds((prev) => {
+      if (!prev.has(id)) return prev;
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
+    onRemove(id);
+  };
+
+  return (
+    <section className="ledger-panel">
+      <div className="panel-head">
+        <h2>Annual bills</h2>
+        <p className="panel-sub">
+          Things you pay once a year — we'll spread the cost across 12 months for you. Add an expected
+          due date, then click "Move →" when it's time to actually pay it; that copies it into One-off
+          spending & deposits (as unpaid) so you can track it there, and dims it here so you know it's
+          already been handled this cycle.
+        </p>
+      </div>
+
+      <div className="table-wrap">
+        <div className="row annual-row row-head">
+          <span />
+          <span />
+          <span>Item</span>
+          <span>Due date</span>
+          <span className="num">Amount</span>
+          <span />
+          <span className="row-action" />
+        </div>
+
+        {items.length === 0 && <div className="empty-row">{emptyLabel}</div>}
+
+        {items.map((item) => {
+          const remaining = daysUntil(item.dueDate);
+          return (
+            <div
+              key={item.id}
+              className={`row annual-row ${draggingId === item.id ? "dragging" : ""} ${overId === item.id && draggingId && draggingId !== item.id ? "drag-over-target" : ""} ${item.movedThisCycle ? "dimmed" : ""}`}
+              onDragOver={(e) => {
+                if (!draggingId) return;
+                e.preventDefault();
+                dragOverRow(item.id);
+              }}
+              onDrop={(e) => {
+                if (!draggingId) return;
+                e.preventDefault();
+                dropOnRow(item.id);
+              }}
+            >
+              <div
+                className="drag-handle"
+                title="Drag to reorder"
+                draggable
+                onDragStart={(e) => {
+                  e.dataTransfer.effectAllowed = "move";
+                  e.dataTransfer.setData("text/plain", item.id);
+                  const rowEl = e.currentTarget.closest(".row");
+                  if (rowEl && e.dataTransfer.setDragImage) {
+                    e.dataTransfer.setDragImage(rowEl, 20, 20);
+                  }
+                  startDrag(item.id);
+                }}
+                onDragEnd={endDrag}
+              >
+                ⋮⋮
+              </div>
+
+              <input
+                type="checkbox"
+                className="row-select"
+                checked={selectedIds.has(item.id)}
+                onChange={() => toggleSelect(item.id)}
+                aria-label={`Select ${item.name}`}
+                title='Select, then use "Undim selected" below'
+              />
+
+              <input
+                className="cell-input name-input"
+                type="text"
+                value={item.name}
+                placeholder="Item name"
+                onChange={(e) => onChange(item.id, { name: e.target.value })}
+              />
+
+              <div className="date-cell">
+                <input
+                  className="cell-input date-input"
+                  type="date"
+                  value={item.dueDate || ""}
+                  onChange={(e) => onChange(item.id, { dueDate: e.target.value })}
+                />
+                {item.dueDate && !item.movedThisCycle && remaining !== null && (
+                  <span className={`due-badge ${remaining < 0 ? "overdue" : remaining <= 7 ? "soon" : ""}`}>
+                    {remaining < 0
+                      ? `${Math.abs(remaining)}d overdue`
+                      : remaining === 0
+                      ? "Due today"
+                      : `in ${remaining}d`}
+                  </span>
+                )}
+                {item.movedThisCycle && <span className="due-badge">Logged this cycle</span>}
+              </div>
+
+              <div className="amount-field">
+                <span className="dollar">$</span>
+                <input
+                  className="cell-input num-input"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  inputMode="decimal"
+                  value={item.amount}
+                  onChange={(e) =>
+                    onChange(item.id, { amount: e.target.value === "" ? "" : parseFloat(e.target.value) })
+                  }
+                />
+              </div>
+
+              {item.movedThisCycle ? (
+                <button className="add-btn small" onClick={() => onUndim(item.id)}>
+                  Undim
+                </button>
+              ) : (
+                <button className="add-btn small" onClick={() => onMoveToOneOff(item.id)}>
+                  Move →
+                </button>
+              )}
+
+              <button className="row-remove" onClick={() => handleRemove(item.id)} aria-label={`Remove ${item.name}`}>
+                ×
+              </button>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="panel-foot">
+        <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+          <button className="add-btn" onClick={onAdd}>
+            + {addLabel}
+          </button>
+            <button
+            className="add-btn"
+            onClick={handleDimSelected}
+            disabled={selectedIds.size === 0}
+          >
+            Dim selected{selectedIds.size > 0 ? ` (${selectedIds.size})` : ""}
+          </button>
+          <button className="add-btn" onClick={handleUndimSelected} disabled={selectedIds.size === 0}>
+            Undim selected{selectedIds.size > 0 ? ` (${selectedIds.size})` : ""}
+          </button>
+        </div>
+        {footerNote && <span className="foot-note">{footerNote}</span>}
+      </div>
+    </section>
+  );
+}
+
+function App() {
+  const [data, setData] = useState(null);
+  const [status, setStatus] = useState("loading");
+  const [saveState, setSaveState] = useState("idle");
+  const saveTimer = useRef(null);
+  const hasLoaded = useRef(false);
+  const [undoExtraItems, setUndoExtraItems] = useState(null);
+  const [undoPaidExtraItems, setUndoPaidExtraItems] = useState(null);
+  const [undoSettle, setUndoSettle] = useState(null);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        const merged = { ...defaultData(), ...parsed, accounts: { ...defaultData().accounts, ...(parsed.accounts || {}) } };
+        // Migration: items saved before the "paid" feature existed have no `paid`
+        // field. Treat those as already applied (paid: true) so previously-entered
+        // real balances don't silently change. Only brand-new items default to pending.
+        if (Array.isArray(parsed.extraItems)) {
+          merged.extraItems = parsed.extraItems.map((it) => ({
+            ...it,
+            paid: it.paid === undefined ? true : it.paid,
+          }));
+        }
+        // Migration: annual bills saved before due dates / move-tracking existed.
+        if (Array.isArray(parsed.annualItems)) {
+          merged.annualItems = parsed.annualItems.map((it) => ({
+            ...it,
+            dueDate: it.dueDate === undefined ? "" : it.dueDate,
+            movedThisCycle: it.movedThisCycle === undefined ? false : it.movedThisCycle,
+          }));
+        }
+        setData(merged);
+      } else {
+        setData(defaultData());
+      }
+    } catch (err) {
+      console.error("Ledger load error:", err);
+      setData(defaultData());
+    }
+    setStatus("ready");
+  }, []);
+
+  useEffect(() => {
+    if (!data || status !== "ready") return;
+    if (!hasLoaded.current) {
+      hasLoaded.current = true;
+      return;
+    }
+    setSaveState("saving");
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+        setSaveState("saved");
+      } catch (err) {
+        console.error("Ledger save error:", err);
+        setSaveState("idle");
+      }
+    }, 400);
+    return () => clearTimeout(saveTimer.current);
+  }, [data]);
+
+  const updateItem = (listKey) => (id, patch) => {
+    setData((d) => ({
+      ...d,
+      [listKey]: d[listKey].map((it) => (it.id === id ? { ...it, ...patch } : it)),
+    }));
+  };
+  const addItem = (listKey, shape) => () => {
+    setData((d) => ({ ...d, [listKey]: [...d[listKey], { id: genId(), ...shape }] }));
+  };
+
+  const reorderItems = (listKey) => (activeId, overId) => {
+      if (activeId === overId) return;
+
+      setData(d => {
+          const items = [...d[listKey]];
+
+          const oldIndex = items.findIndex(i => i.id === activeId);
+          const newIndex = items.findIndex(i => i.id === overId);
+
+          const moved = items.splice(oldIndex, 1)[0];
+          items.splice(newIndex, 0, moved);
+
+          return {
+              ...d,
+              [listKey]: items
+          };
+      });
+  };
+
+  const removeItem = (listKey) => (id) => {
+    setData((d) => ({ ...d, [listKey]: d[listKey].filter((it) => it.id !== id) }));
+  };
+  const removeExtraItem = (id) => {
+    setData((d) => {
+    setUndoExtraItems(d.extraItems);
+
+    return {
+      ...d,
+      extraItems: d.extraItems.filter((it) => it.id !== id),
+    };
+  });
+};
+
+const clearExtraItems = () => {
+  setData((d) => {
+    if (d.extraItems.length === 0) return d;
+
+    setUndoExtraItems(d.extraItems);
+
+    return {
+      ...d,
+      extraItems: [],
+    };
+  });
+};
+
+const undoExtraItemsChange = () => {
+  if (!undoExtraItems) return;
+
+  setData((d) => ({
+    ...d,
+    extraItems: undoExtraItems,
+  }));
+
+  setUndoExtraItems(null);
+};
+
+const markExtraItemsPaid = (ids) => {
+  if (!ids || ids.length === 0) return;
+  const idSet = new Set(ids);
+  setData((d) => {
+    setUndoPaidExtraItems(d.extraItems);
+    return {
+      ...d,
+      extraItems: d.extraItems.map((it) => (idSet.has(it.id) ? { ...it, paid: true } : it)),
+    };
+  });
+};
+
+const markExtraItemsUnpaid = (ids) => {
+  if (!ids || ids.length === 0) return;
+  const idSet = new Set(ids);
+  setData((d) => {
+    setUndoPaidExtraItems(d.extraItems);
+    return {
+      ...d,
+      extraItems: d.extraItems.map((it) => (idSet.has(it.id) ? { ...it, paid: false } : it)),
+    };
+  });
+};
+
+const undoMarkPaid = () => {
+  if (!undoPaidExtraItems) return;
+  setData((d) => ({ ...d, extraItems: undoPaidExtraItems }));
+  setUndoPaidExtraItems(null);
+};
+
+// Copies an annual bill into the One-off spending & deposits list as a new
+// (unpaid) item, and dims the annual bill so it's clearly "already logged"
+// for this cycle — without deleting it, so it's ready to reuse next year.
+const moveAnnualItemToOneOff = (id) => {
+  setData((d) => {
+    const bill = d.annualItems.find((it) => it.id === id);
+    if (!bill || bill.movedThisCycle) return d;
+    const newExtraItem = {
+      id: genId(),
+      name: bill.name,
+      account: "checking",
+      direction: "subtract",
+      amount: bill.amount,
+      paid: false,
+    };
+    return {
+      ...d,
+      annualItems: d.annualItems.map((it) => (it.id === id ? { ...it, movedThisCycle: true } : it)),
+      extraItems: [...d.extraItems, newExtraItem],
+    };
+  });
+};
+
+const undimAnnualItem = (id) => {
+  setData((d) => ({
+    ...d,
+    annualItems: d.annualItems.map((it) => (it.id === id ? { ...it, movedThisCycle: false } : it)),
+  }));
+};
+
+const undimAnnualItems = (ids) => {
+  if (!ids || ids.length === 0) return;
+  const idSet = new Set(ids);
+  setData((d) => ({
+    ...d,
+    annualItems: d.annualItems.map((it) => (idSet.has(it.id) ? { ...it, movedThisCycle: false } : it)),
+  }));
+};
+
+const dimAnnualItems = (ids) => {
+  if (!ids || ids.length === 0) return;
+
+  const idSet = new Set(ids);
+
+  setData((d) => ({
+    ...d,
+    annualItems: d.annualItems.map((it) =>
+      idSet.has(it.id)
+        ? { ...it, movedThisCycle: true }
+        : it
+    ),
+  }));
+};
+
+// Sweeps whatever is currently sitting in checking (after paid one-off items
+// and any automatic overdraft transfer) into savings, resets checking to $0,
+// and archives the paid items whose effects are now baked into the balances.
+const settleCheckingToSavings = () => {
+  setData((d) => {
+    const paidItems = d.extraItems.filter((i) => i.paid);
+    const checkingAdj = signedTotal(paidItems, "checking");
+    const savingsAdj = signedTotal(paidItems, "savings");
+    const baseChecking = (parseFloat(d.accounts.checking) || 0) + checkingAdj;
+    const baseSavings = (parseFloat(d.accounts.savings) || 0) + savingsAdj;
+
+    let transfer = 0;
+    if (baseChecking < 0) {
+      transfer = Math.min(-baseChecking, Math.max(baseSavings, 0));
+    }
+    const currentChecking = baseChecking + transfer;
+    const currentSavings = baseSavings - transfer;
+
+    if (currentChecking <= 0) return d;
+
+    setUndoSettle({ accounts: d.accounts, extraItems: d.extraItems });
+
+    return {
+      ...d,
+      accounts: {
+        checking: 0,
+        savings: currentSavings + currentChecking,
+      },
+      extraItems: d.extraItems.filter((i) => !i.paid),
+    };
+  });
+};
+
+const undoSettleChange = () => {
+  if (!undoSettle) return;
+  setData((d) => ({ ...d, accounts: undoSettle.accounts, extraItems: undoSettle.extraItems }));
+  setUndoSettle(null);
+};
+  const updateAccount = (key) => (value) => {
+    setData((d) => ({ ...d, accounts: { ...d.accounts, [key]: value } }));
+  };
+
+  const totals = useMemo(() => {
+    if (!data) return null;
+    const fixed = sum(data.monthlyItems.filter((i) => i.type === "fixed"));
+    const variable = sum(data.monthlyItems.filter((i) => i.type === "variable"));
+    const monthly = fixed + variable;
+    const annual = sum(data.annualItems);
+    const annualMonthly = annual / 12;
+    // const totalExpenses = monthly + annualMonthly;
+    const totalExpenses = monthly;
+    const income = sum(data.incomeItems);
+    const savings =
+      data.savingsMode === "percent"
+        ? income * ((parseFloat(data.savingsValue) || 0) / 100)
+        : parseFloat(data.savingsValue) || 0;
+    const makeIt = income - totalExpenses - savings;
+
+    const paidExtraItems = data.extraItems.filter((i) => i.paid);
+    const checkingAdj = signedTotal(paidExtraItems, "checking");
+    const savingsAdj = signedTotal(paidExtraItems, "savings");
+    const baseChecking = (parseFloat(data.accounts.checking) || 0) + checkingAdj;
+    const baseSavings = (parseFloat(data.accounts.savings) || 0) + savingsAdj;
+
+    // If checking would go negative, automatically pull from savings to cover it
+    // (limited to whatever savings actually has available).
+    let transfer = 0;
+    if (baseChecking < 0) {
+      transfer = Math.min(-baseChecking, Math.max(baseSavings, 0));
+    }
+    const realChecking = baseChecking + transfer;
+    const realSavings = baseSavings - transfer;
+    const shortfall = realChecking < 0 ? -realChecking : 0;
+
+    return {
+      fixed,
+      variable,
+      monthly,
+      annual,
+      annualMonthly,
+      totalExpenses,
+      income,
+      savings,
+      makeIt,
+      checkingAdj,
+      savingsAdj,
+      realChecking,
+      realSavings,
+      transfer,
+      shortfall,
+    };
+  }, [data]);
+
+  if (status === "loading" || !data || !totals) {
+    return (
+      <div className="ledger-root">
+        <div className="loading-state">Opening the ledger…</div>
+      </div>
+    );
+  }
+
+  const barSegments = [
+    { key: "fixed", label: "Fixed bills", value: totals.fixed, color: "var(--expense)" },
+    { key: "variable", label: "Everyday estimate", value: totals.variable, color: "var(--expense-soft)" },
+    { key: "annual", label: "Annual bills (÷12)", value: totals.annualMonthly, color: "var(--expense-deep)" },
+    { key: "savings", label: "Savings", value: totals.savings, color: "var(--savings)" },
+    { key: "makeit", label: "Make-it money", value: Math.max(totals.makeIt, 0), color: "var(--income)" },
+  ];
+  const barTotal = Math.max(totals.income, totals.totalExpenses + totals.savings, 1);
+
+  return (
+    <div className="ledger-root">
+      <header className="masthead">
+        <div className="masthead-eyebrow">Household Ledger</div>
+        <h1>Stangel Residence Finances</h1>
+        {saveState === "saving" && <span className="save-pill">Saving…</span>}
+        {saveState === "saved" && <span className="save-pill saved">Saved</span>}
+      </header>
+
+      <div className="strip">
+        <div className="strip-item">
+          <span className="strip-label">Monthly income</span>
+          <span className="strip-value income">{fmt(totals.income)}</span>
+        </div>
+        <span className="strip-op">−</span>
+        <div className="strip-item">
+          <span className="strip-label">Monthly expenses</span>
+          <span className="strip-value expense">{fmt(totals.totalExpenses)}</span>
+        </div>
+        <span className="strip-op">−</span>
+        <div className="strip-item">
+          <span className="strip-label">Savings</span>
+          <span className="strip-value savings">{fmt(totals.savings)}</span>
+        </div>
+        <span className="strip-op">=</span>
+        <div className="strip-item strip-final">
+          <span className="strip-label">Make-it money (projected)</span>
+          <span className={`strip-value ${totals.makeIt < 0 ? "negative" : "income"}`}>
+            {fmt(totals.makeIt)}
+          </span>
+        </div>
+      </div>
+
+      <div className="bar">
+        {barSegments.map((seg) => (
+          <div
+            key={seg.key}
+            className="bar-seg"
+            style={{ width: `${Math.max((seg.value / barTotal) * 100, 0)}%`, background: seg.color }}
+            title={`${seg.label}: ${fmt(seg.value)}`}
+          />
+        ))}
+      </div>
+      <div className="bar-legend">
+        {barSegments.map((seg) => (
+          <span key={seg.key} className="legend-item">
+            <i style={{ background: seg.color }} /> {seg.label}
+          </span>
+        ))}
+      </div>
+
+      <section className="ledger-panel wide-panel">
+        <div className="panel-head">
+          <h2>Real balances</h2>
+          <p className="panel-sub">
+            Enter your actual bank balances, then log one-off spending or deposits below. Check an item
+            and click "Paid" once it's actually happened — that's when it affects the balances here.
+            Pending (unchecked) items are just a heads-up list and don't count yet.
+          </p>
+        </div>
+
+        <div className="balance-inputs">
+          <div className="balance-block">
+            <span className="field-label">Checking / make-it money balance</span>
+            <div className="amount-field big">
+              <span className="dollar">$</span>
+              <input
+                className="cell-input num-input"
+                type="number"
+                step="0.01"
+                value={data.accounts.checking}
+                onChange={(e) => updateAccount("checking")(e.target.value === "" ? "" : parseFloat(e.target.value))}
+              />
+            </div>
+            <div className="balance-current">
+              <span className="summary-label">
+                Current running balance {totals.checkingAdj !== 0 && `(${totals.checkingAdj > 0 ? "+" : ""}${fmt(totals.checkingAdj)} from paid items below)`}
+              </span>
+              <span className={`summary-value ${totals.realChecking < 0 ? "negative" : "income"}`}>
+                {fmt(totals.realChecking)}
+              </span>
+              {totals.transfer > 0 && (
+                <span className="transfer-note">↳ {fmt(totals.transfer)} auto-covered from savings</span>
+              )}
+              {totals.shortfall > 0 && (
+                <span className="shortfall-note">
+                  Still short {fmt(totals.shortfall)} — savings can't fully cover this
+                </span>
+              )}
+              <div className="settle-row">
+                <button
+                  className="add-btn"
+                  onClick={settleCheckingToSavings}
+                  disabled={totals.realChecking <= 0}
+                  title="Move whatever's currently in checking into savings, and reset checking to $0"
+                >
+                  Move to savings &amp; clear
+                </button>
+                {undoSettle && (
+                  <button className="add-btn" onClick={undoSettleChange}>
+                    Undo
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="balance-block">
+            <span className="field-label">Savings / money market balance</span>
+            <div className="amount-field big">
+              <span className="dollar">$</span>
+              <input
+                className="cell-input num-input"
+                type="number"
+                step="0.01"
+                value={data.accounts.savings}
+                onChange={(e) => updateAccount("savings")(e.target.value === "" ? "" : parseFloat(e.target.value))}
+              />
+            </div>
+            <div className="balance-current">
+              <span className="summary-label">
+                Current running balance{" "}
+                {(totals.savingsAdj !== 0 || totals.transfer > 0) &&
+                  `(${[
+                    totals.savingsAdj !== 0 ? `${totals.savingsAdj > 0 ? "+" : ""}${fmt(totals.savingsAdj)} from paid items below` : null,
+                    totals.transfer > 0 ? `−${fmt(totals.transfer)} moved to checking` : null,
+                  ]
+                    .filter(Boolean)
+                    .join(", ")})`}
+              </span>
+              <span className={`summary-value ${totals.realSavings < 0 ? "negative" : "savings"}`}>
+                {fmt(totals.realSavings)}
+              </span>
+              {totals.transfer > 0 && (
+                <span className="transfer-note">↳ sent {fmt(totals.transfer)} to checking to cover the shortfall</span>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <h3 className="sub-heading">One-off spending &amp; deposits</h3>
+        <p className="panel-sub small">
+          Random purchases, surprise bills, bonuses, gifts — anything outside your regular budget. Check
+          the box next to one or more items, then click "Paid" to apply them to the balances above.
+        </p>
+        <ExtraItemsTable
+          items={data.extraItems}
+          onChange={updateItem("extraItems")}
+          onAdd={addItem("extraItems", { name: "New item", account: "checking", direction: "subtract", amount: 0, paid: false })}
+          onRemove={removeExtraItem}
+          onClearAll={clearExtraItems}
+          onUndoClear={undoExtraItemsChange}
+          canUndoClear={!!undoExtraItems}
+          onMarkPaid={markExtraItemsPaid}
+          onMarkUnpaid={markExtraItemsUnpaid}
+          onUndoPaid={undoMarkPaid}
+          canUndoPaid={!!undoPaidExtraItems}
+          onReorder={reorderItems("extraItems")}
+        />
+      </section>
+
+      <div className="grid">
+        <LineItemTable
+          title="Monthly spending"
+          subtitle="Fixed bills you know exactly, plus everyday estimates like groceries and gas."
+          items={data.monthlyItems}
+          onChange={updateItem("monthlyItems")}
+          onAdd={addItem("monthlyItems", { name: "New item", type: "variable", amount: 0 })}
+          onRemove={removeItem("monthlyItems")}
+          onReorder={reorderItems("monthlyItems")}
+          showType
+          addLabel="Add monthly item"
+          emptyLabel="No monthly items yet — add your first bill or estimate."
+          footerNote={`Fixed ${fmt(totals.fixed)} + Estimated ${fmt(totals.variable)} = ${fmt(totals.monthly)} / mo`}
+        />
+
+        <AnnualBillsTable
+          items={data.annualItems}
+          onChange={updateItem("annualItems")}
+          onAdd={addItem("annualItems", { name: "New annual bill", amount: 0, dueDate: "", movedThisCycle: false })}
+          onRemove={removeItem("annualItems")}
+          onReorder={reorderItems("annualItems")}
+          onMoveToOneOff={moveAnnualItemToOneOff}
+          onUndim={undimAnnualItem}
+          onUndimSelected={undimAnnualItems}
+          onDimSelected={dimAnnualItems}
+          addLabel="Add annual bill"
+          emptyLabel="No annual bills yet — add propane, Ring, garbage, phone, etc."
+          footerNote={
+            <div className="flex flex-col">
+              <span>{`${fmt(totals.annual)} / yr → ${fmt(totals.annualMonthly)} / mo`}</span><br/>
+              <span className="text-sm opacity-80 mt-1">
+                Savings remaining: {fmt(totals.realSavings - totals.annual)}
+              </span>
+            </div>
+          }
+        />
+
+        <LineItemTable
+          title="Income"
+          subtitle="Average monthly take-home pay per person or paycheck."
+          items={data.incomeItems}
+          onChange={updateItem("incomeItems")}
+          onAdd={addItem("incomeItems", { name: "New income source", amount: 0 })}
+          onRemove={removeItem("incomeItems")}
+          onReorder={reorderItems("incomeItems")}
+          showType={false}
+          addLabel="Add income source"
+          emptyLabel="Add your paycheck and your partner's paycheck."
+          footerNote={`Total ${fmt(totals.income)} / mo`}
+        />
+
+        <section className="ledger-panel savings-panel">
+          <div className="panel-head">
+            <h2>Savings target</h2>
+            <p className="panel-sub">Decide how much of your income goes to savings before the rest becomes "make-it" money.</p>
+          </div>
+
+          <div className="savings-controls">
+            <div className="type-toggle wide">
+              <button
+                type="button"
+                className={data.savingsMode === "percent" ? "active" : ""}
+                onClick={() => setData((d) => ({ ...d, savingsMode: "percent" }))}
+              >
+                % of income
+              </button>
+              <button
+                type="button"
+                className={data.savingsMode === "fixed" ? "active" : ""}
+                onClick={() => setData((d) => ({ ...d, savingsMode: "fixed" }))}
+              >
+                Fixed $ / mo
+              </button>
+            </div>
+
+            <div className="amount-field big">
+              {data.savingsMode === "fixed" && <span className="dollar">$</span>}
+              <input
+                className="cell-input num-input"
+                type="number"
+                min="0"
+                step={data.savingsMode === "percent" ? "1" : "0.01"}
+                value={data.savingsValue}
+                onChange={(e) =>
+                  setData((d) => ({
+                    ...d,
+                    savingsValue: e.target.value === "" ? "" : parseFloat(e.target.value),
+                  }))
+                }
+              />
+              {data.savingsMode === "percent" && <span className="percent">%</span>}
+            </div>
+          </div>
+
+          <div className="savings-summary">
+            <div>
+              <span className="summary-label">Goes to savings</span>
+              <span className="summary-value savings">{fmt(totals.savings)} / mo</span>
+            </div>
+            <div>
+              <span className="summary-label">Left over to spend freely</span>
+              <span className={`summary-value ${totals.makeIt < 0 ? "negative" : "income"}`}>
+                {fmt(totals.makeIt)} / mo
+              </span>
+            </div>
+          </div>
+          {totals.makeIt < 0 && (
+            <p className="warning">
+              You're spending more than you bring in at this savings rate. Try lowering the savings
+              target or trimming a monthly item.
+            </p>
+          )}
+        </section>
+      </div>
+
+      <footer className="ledger-footer">
+        Figures are stored privately and only visible to you. Annual bills are automatically divided by
+        12, and real balances combine your entered starting balance with the one-off items you log.
+      </footer>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+
+</script>
+</body>
+</html>
