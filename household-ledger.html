@@ -35,7 +35,7 @@
     font-family: 'Inter', sans-serif;
     padding: 32px clamp(16px, 4vw, 48px) 48px;
     min-height: 100%;
-    max-width: 1440px;
+    max-width: 1600px;
     margin: 0 auto;
   }
 
@@ -47,6 +47,13 @@
   }
 
   .masthead { position: relative; margin-bottom: 28px; padding-bottom: 18px; border-bottom: 1px solid var(--rule); }
+  .masthead-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 18px;
+    flex-wrap: wrap;
+  }
   .masthead-eyebrow {
     font-family: 'IBM Plex Mono', monospace;
     font-size: 12px;
@@ -63,9 +70,16 @@
     line-height: 1.2;
     max-width: 640px;
   }
+  .masthead-meta {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 6px;
+  }
+  @media (max-width: 640px) {
+    .masthead-meta { align-items: flex-start; }
+  }
   .save-pill {
-    position: absolute;
-    top: 0; right: 0;
     font-family: 'IBM Plex Mono', monospace;
     font-size: 11px;
     color: var(--ink-soft);
@@ -75,6 +89,50 @@
     border-radius: 100px;
   }
   .save-pill.saved { color: var(--income); border-color: var(--income); }
+
+  .clock-chip {
+    font-family: 'IBM Plex Mono', monospace;
+    text-align: right;
+    line-height: 1.5;
+  }
+  @media (max-width: 640px) { .clock-chip { text-align: left; } }
+  .clock-date {
+    font-size: 12px;
+    color: var(--ink-soft);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .clock-time {
+    font-size: 18px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    color: var(--ink);
+  }
+
+  .weather-chip {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    color: var(--ink-soft);
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 100px;
+    padding: 5px 12px 5px 10px;
+  }
+  .weather-chip .weather-icon { font-size: 16px; line-height: 1; }
+  .weather-chip .weather-temp { font-weight: 600; color: var(--ink); font-size: 13px; }
+  .weather-chip button {
+    border: none;
+    background: transparent;
+    color: var(--ink-soft);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    text-decoration: underline;
+    cursor: pointer;
+    padding: 0;
+  }
 
   .strip {
     display: flex;
@@ -251,7 +309,7 @@
   grid-template-columns: 20px 20px 1fr 128px 108px 84px 26px;
 }
 .row.monthly-row {
-  grid-template-columns: 20px 20px 1fr 140px 108px 84px 26px;
+  grid-template-columns: 20px 20px 1fr 140px 92px 108px 84px 26px;
 }
 
 .drag-handle {
@@ -404,6 +462,42 @@
   }
   .due-badge.soon { color: var(--savings); font-weight: 600; }
   .due-badge.overdue { color: var(--expense-deep); font-weight: 600; }
+  .due-badge.estimate { font-style: italic; }
+
+  .due-day-cell { display: flex; flex-direction: column; gap: 3px; align-items: center; }
+  .due-day-field { display: flex; align-items: baseline; gap: 3px; justify-content: center; }
+  .due-day-field .due-day-prefix { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--ink-soft); }
+  .due-day-input {
+    width: 40px;
+    text-align: center;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+  }
+
+  .upcoming-bills { display: flex; flex-direction: column; gap: 0; }
+  .upcoming-bill-row {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--rule);
+    font-size: 13px;
+  }
+  .upcoming-bill-row:last-child { border-bottom: none; }
+  .upcoming-bill-name { display: flex; flex-direction: column; }
+  .upcoming-bill-tag {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--ink-soft);
+  }
+  .upcoming-bill-amount {
+    font-family: 'IBM Plex Mono', monospace;
+    font-variant-numeric: tabular-nums;
+    color: var(--ink-soft);
+  }
 
   .add-btn.small {
     padding: 4px 8px;
@@ -525,13 +619,13 @@ const genId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
 const defaultData = () => ({
   monthlyItems: [
-    { id: genId(), name: "Mortgage / Rent", type: "fixed", amount: 1800, dimmed: false },
-    { id: genId(), name: "Car payment", type: "fixed", amount: 420, dimmed: false },
-    { id: genId(), name: "Netflix", type: "fixed", amount: 17.99, dimmed: false },
-    { id: genId(), name: "Spotify", type: "fixed", amount: 11.99, dimmed: false },
-    { id: genId(), name: "Groceries", type: "variable", amount: 650, dimmed: false },
-    { id: genId(), name: "Gas (both cars)", type: "variable", amount: 220, dimmed: false },
-    { id: genId(), name: "Dog food & supplies", type: "variable", amount: 90, dimmed: false },
+    { id: genId(), name: "Mortgage / Rent", type: "fixed", amount: 1800, dimmed: false, dueDay: 3 },
+    { id: genId(), name: "Car payment", type: "fixed", amount: 420, dimmed: false, dueDay: 2 },
+    { id: genId(), name: "Netflix", type: "fixed", amount: 17.99, dimmed: false, dueDay: 14 },
+    { id: genId(), name: "Spotify", type: "fixed", amount: 11.99, dimmed: false, dueDay: 20 },
+    { id: genId(), name: "Groceries", type: "variable", amount: 650, dimmed: false, dueDay: "" },
+    { id: genId(), name: "Gas (both cars)", type: "variable", amount: 220, dimmed: false, dueDay: "" },
+    { id: genId(), name: "Dog food & supplies", type: "variable", amount: 90, dimmed: false, dueDay: "" },
   ],
   annualItems: [
     { id: genId(), name: "Propane tank lease", amount: 240, dueDate: "2026-10-01", movedThisCycle: false },
@@ -951,6 +1045,33 @@ function daysUntil(dateStr) {
   return Math.round((due - today) / 86400000);
 }
 
+// Given a recurring day-of-month (1-31), finds the next calendar date it falls
+// on from today, clamping to the last day of a month when it's too short
+// (e.g. a "31st" bill lands on Feb 28/29 that month).
+function nextMonthlyOccurrence(day) {
+  const d = parseInt(day, 10);
+  if (!d || d < 1 || d > 31) return null;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const clampToMonth = (year, month) => {
+    const lastDay = new Date(year, month + 1, 0).getDate();
+    return new Date(year, month, Math.min(d, lastDay));
+  };
+  let candidate = clampToMonth(today.getFullYear(), today.getMonth());
+  if (candidate < today) {
+    candidate = clampToMonth(today.getFullYear(), today.getMonth() + 1);
+  }
+  return candidate;
+}
+
+function daysUntilMonthly(day) {
+  const due = nextMonthlyOccurrence(day);
+  if (!due) return null;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return Math.round((due - today) / 86400000);
+}
+
 function AnnualBillsTable({
   items,
   onChange,
@@ -1203,7 +1324,9 @@ function MonthlyItemsTable({
       <div className="panel-head">
         <h2>Monthly spending</h2>
         <p className="panel-sub">
-          Fixed bills you know exactly, plus everyday estimates like groceries and gas. Click "Move →"
+          Fixed bills you know exactly, plus everyday estimates like groceries and gas. Set a due day
+          (1–31) on any item to see it in "Bills due soon" above — exact for fixed bills, a rough guess
+          for estimates. Click "Move →"
           once you've actually paid an item; that copies it into One-off spending &amp; deposits (as
           unpaid) so you can track the real amount against checking/savings, and dims it here so its
           budgeted estimate stops being counted below. Use "Dim"/"Undim" on their own to mark something
@@ -1217,6 +1340,7 @@ function MonthlyItemsTable({
           <span />
           <span>Item</span>
           <span>Type</span>
+          <span>Due day</span>
           <span className="num">Amount</span>
           <span />
           <span className="row-action" />
@@ -1291,6 +1415,38 @@ function MonthlyItemsTable({
               </button>
             </div>
 
+            <div className="due-day-cell">
+              <div className="due-day-field">
+                <span className="due-day-prefix">on</span>
+                <input
+                  className="cell-input num-input due-day-input"
+                  type="number"
+                  min="1"
+                  max="31"
+                  placeholder="—"
+                  title={item.type === "fixed" ? "Day of the month this is normally due" : "Day of the month you usually spend this (optional, a guess)"}
+                  value={item.dueDay === undefined ? "" : item.dueDay}
+                  onChange={(e) =>
+                    onChange(item.id, {
+                      dueDay:
+                        e.target.value === ""
+                          ? ""
+                          : Math.max(1, Math.min(31, parseInt(e.target.value, 10) || 1)),
+                    })
+                  }
+                />
+              </div>
+              {item.dueDay && !item.dimmed && (() => {
+                const remaining = daysUntilMonthly(item.dueDay);
+                if (remaining === null) return null;
+                return (
+                  <span className={`due-badge ${item.type === "variable" ? "estimate" : remaining <= 3 ? "soon" : ""}`}>
+                    {remaining === 0 ? "Due today" : `in ${remaining}d`}
+                  </span>
+                );
+              })()}
+            </div>
+
             <div className="amount-field">
               <span className="dollar">$</span>
               <input
@@ -1345,6 +1501,194 @@ function MonthlyItemsTable({
   );
 }
 
+function LiveClock() {
+  const [now, setNow] = useState(() => new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const dateStr = now.toLocaleDateString("en-US", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
+  const timeStr = now.toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+
+  return (
+    <div className="clock-chip">
+      <div className="clock-date">{dateStr}</div>
+      <div className="clock-time">{timeStr}</div>
+    </div>
+  );
+}
+
+// Maps Open-Meteo's WMO weather codes to a rough emoji + label. Not exhaustive,
+// just enough to give an at-a-glance sense of the day.
+const WEATHER_CODES = {
+  0: ["☀️", "Clear"],
+  1: ["🌤️", "Mostly clear"],
+  2: ["⛅", "Partly cloudy"],
+  3: ["☁️", "Overcast"],
+  45: ["🌫️", "Fog"],
+  48: ["🌫️", "Fog"],
+  51: ["🌦️", "Light drizzle"],
+  53: ["🌦️", "Drizzle"],
+  55: ["🌦️", "Heavy drizzle"],
+  61: ["🌧️", "Light rain"],
+  63: ["🌧️", "Rain"],
+  65: ["🌧️", "Heavy rain"],
+  71: ["🌨️", "Light snow"],
+  73: ["🌨️", "Snow"],
+  75: ["❄️", "Heavy snow"],
+  80: ["🌦️", "Rain showers"],
+  81: ["🌧️", "Rain showers"],
+  82: ["⛈️", "Violent showers"],
+  95: ["⛈️", "Thunderstorm"],
+  96: ["⛈️", "Thunderstorm"],
+  99: ["⛈️", "Thunderstorm"],
+};
+
+function WeatherWidget() {
+  // idle -> asking -> ok | denied | error
+  const [state, setState] = useState("idle");
+  const [weather, setWeather] = useState(null);
+
+  const fetchWeather = useCallback(() => {
+    if (!("geolocation" in navigator)) {
+      setState("error");
+      return;
+    }
+    setState("asking");
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        try {
+          const { latitude, longitude } = pos.coords;
+          const url = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,weather_code&temperature_unit=fahrenheit`;
+          const res = await fetch(url);
+          const json = await res.json();
+          const temp = json?.current?.temperature_2m;
+          const code = json?.current?.weather_code;
+          if (temp === undefined) throw new Error("No temperature in response");
+          setWeather({ temp: Math.round(temp), code });
+          setState("ok");
+        } catch (err) {
+          console.error("Weather fetch error:", err);
+          setState("error");
+        }
+      },
+      (err) => {
+        console.warn("Geolocation denied/unavailable:", err);
+        setState("denied");
+      },
+      { timeout: 8000 }
+    );
+  }, []);
+
+  useEffect(() => {
+    fetchWeather();
+  }, [fetchWeather]);
+
+  if (state === "idle" || state === "asking") {
+    return (
+      <div className="weather-chip">
+        <span className="weather-icon">⋯</span> Checking weather…
+      </div>
+    );
+  }
+
+  if (state === "denied" || state === "error") {
+    return (
+      <div className="weather-chip">
+        <span className="weather-icon">🌡️</span>
+        <span>Weather unavailable</span>
+        <button onClick={fetchWeather}>Retry</button>
+      </div>
+    );
+  }
+
+  const [icon, label] = WEATHER_CODES[weather.code] || ["🌡️", "—"];
+
+  return (
+    <div className="weather-chip" title={label}>
+      <span className="weather-icon">{icon}</span>
+      <span className="weather-temp">{weather.temp}°F</span>
+      <span>{label}</span>
+    </div>
+  );
+}
+
+// Merges recurring fixed/estimated monthly items (by day-of-month) with
+// one-time annual bills (by exact date) into a single, soonest-first
+// reminder list.
+function UpcomingBillsPanel({ monthlyItems, annualItems }) {
+  const upcoming = useMemo(() => {
+    const fromMonthly = monthlyItems
+      .filter((it) => !it.dimmed && it.dueDay)
+      .map((it) => ({
+        id: it.id,
+        name: it.name,
+        amount: it.amount,
+        remaining: daysUntilMonthly(it.dueDay),
+        tag: it.type === "fixed" ? "Monthly" : "Monthly · estimate",
+      }));
+
+  const fromAnnual = annualItems
+    .filter((it) => !it.movedThisCycle && it.dueDate)
+    .map((it) => ({
+      id: it.id,
+      name: it.name,
+      amount: it.amount,
+      remaining: daysUntil(it.dueDate),
+      tag: "Annual",
+    }))
+    .filter((it) => it.remaining !== null && it.remaining <= 60);
+
+    return [...fromMonthly, ...fromAnnual]
+      .filter((it) => it.remaining !== null)
+      .sort((a, b) => a.remaining - b.remaining)
+      .slice(0, 8);
+  }, [monthlyItems, annualItems]);
+
+  if (upcoming.length === 0) return null;
+
+  return (
+    <section className="ledger-panel wide-panel">
+      <div className="panel-head">
+        <h2>Bills due soon</h2>
+        <p className="panel-sub">
+          Pulled automatically from the due days you set on monthly items and the due dates on annual
+          bills below — soonest first.
+        </p>
+      </div>
+      <div className="upcoming-bills">
+        {upcoming.map((it) => (
+          <div key={it.id} className="upcoming-bill-row">
+            <div className="upcoming-bill-name">
+              <span>{it.name}</span>
+              <span className="upcoming-bill-tag">{it.tag}</span>
+            </div>
+            <span className="upcoming-bill-amount">{fmt(it.amount)}</span>
+            <span className={`due-badge ${it.remaining < 0 ? "overdue" : it.remaining <= 3 ? "soon" : ""}`}>
+              {it.remaining < 0
+                ? `${Math.abs(it.remaining)}d overdue`
+                : it.remaining === 0
+                ? "Due today"
+                : `in ${it.remaining}d`}
+            </span>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function App() {
   const [data, setData] = useState(null);
   const [status, setStatus] = useState("loading");
@@ -1375,6 +1719,7 @@ function App() {
           merged.monthlyItems = parsed.monthlyItems.map((it) => ({
             ...it,
             dimmed: it.dimmed === undefined ? false : it.dimmed,
+            dueDay: it.dueDay === undefined ? "" : it.dueDay,
           }));
         }
         // Migration: annual bills saved before due dates / move-tracking existed.
@@ -1788,10 +2133,18 @@ const undoSettleChange = () => {
   return (
     <div className="ledger-root">
       <header className="masthead">
-        <div className="masthead-eyebrow">Household Ledger</div>
-        <h1>Personal Finances</h1>
-        {saveState === "saving" && <span className="save-pill">Saving…</span>}
-        {saveState === "saved" && <span className="save-pill saved">Saved</span>}
+        <div className="masthead-top">
+          <div>
+            <div className="masthead-eyebrow">Household Ledger</div>
+            <h1>Personal Finances</h1>
+          </div>
+          <div className="masthead-meta">
+            <LiveClock />
+            <WeatherWidget />
+            {saveState === "saving" && <span className="save-pill">Saving…</span>}
+            {saveState === "saved" && <span className="save-pill saved">Saved</span>}
+          </div>
+        </div>
       </header>
 
       <div className="strip">
@@ -1835,6 +2188,8 @@ const undoSettleChange = () => {
           </span>
         ))}
       </div>
+
+      <UpcomingBillsPanel monthlyItems={data.monthlyItems} annualItems={data.annualItems} />
 
       <section className="ledger-panel wide-panel">
         <div className="panel-head">
@@ -1950,7 +2305,7 @@ const undoSettleChange = () => {
         <MonthlyItemsTable
           items={data.monthlyItems}
           onChange={updateItem("monthlyItems")}
-          onAdd={addItem("monthlyItems", { name: "New item", type: "variable", amount: 0, dimmed: false })}
+          onAdd={addItem("monthlyItems", { name: "New item", type: "variable", amount: 0, dimmed: false, dueDay: "" })}
           onRemove={removeItem("monthlyItems")}
           onReorder={reorderItems("monthlyItems")}
           onMoveToOneOff={moveMonthlyItemToOneOff}
