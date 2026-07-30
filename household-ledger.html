@@ -537,7 +537,7 @@ const defaultData = () => ({
   ],
   incomeItems: [
     { id: genId(), name: "My take-home pay", amount: 4200 },
-    { id: genId(), name: "Wife's take-home pay (avg. of 2 checks)", amount: 3100 },
+    { id: genId(), name: "Wife's take-home pay", amount: 4200 },
   ],
   savingsMode: "percent",
   savingsValue: 15,
@@ -1279,31 +1279,87 @@ const undoExtraItemsChange = () => {
 
 const markExtraItemsPaid = (ids) => {
   if (!ids || ids.length === 0) return;
+
   const idSet = new Set(ids);
+
   setData((d) => {
-    setUndoPaidExtraItems(d.extraItems);
+    setUndoPaidExtraItems({
+      accounts: d.accounts,
+      extraItems: d.extraItems,
+    });
+
+    const accounts = { ...d.accounts };
+
+    const extraItems = d.extraItems.map((item) => {
+      if (!idSet.has(item.id) || item.paid) return item;
+
+      const amount = parseFloat(item.amount) || 0;
+      const delta = item.direction === "add" ? amount : -amount;
+
+      accounts[item.account] =
+        (parseFloat(accounts[item.account]) || 0) + delta;
+
+      return {
+        ...item,
+        paid: true,
+      };
+    });
+
     return {
       ...d,
-      extraItems: d.extraItems.map((it) => (idSet.has(it.id) ? { ...it, paid: true } : it)),
+      accounts,
+      extraItems,
     };
   });
 };
 
 const markExtraItemsUnpaid = (ids) => {
   if (!ids || ids.length === 0) return;
+
   const idSet = new Set(ids);
+
   setData((d) => {
-    setUndoPaidExtraItems(d.extraItems);
+    setUndoPaidExtraItems({
+      accounts: d.accounts,
+      extraItems: d.extraItems,
+    });
+
+    const accounts = { ...d.accounts };
+
+    const extraItems = d.extraItems.map((item) => {
+      if (!idSet.has(item.id) || !item.paid) return item;
+
+      const amount = parseFloat(item.amount) || 0;
+
+      // Reverse whatever Paid previously did
+      const delta = item.direction === "add" ? -amount : amount;
+
+      accounts[item.account] =
+        (parseFloat(accounts[item.account]) || 0) + delta;
+
+      return {
+        ...item,
+        paid: false,
+      };
+    });
+
     return {
       ...d,
-      extraItems: d.extraItems.map((it) => (idSet.has(it.id) ? { ...it, paid: false } : it)),
+      accounts,
+      extraItems,
     };
   });
 };
 
 const undoMarkPaid = () => {
   if (!undoPaidExtraItems) return;
-  setData((d) => ({ ...d, extraItems: undoPaidExtraItems }));
+
+  setData((d) => ({
+    ...d,
+    accounts: undoPaidExtraItems.accounts,
+    extraItems: undoPaidExtraItems.extraItems,
+  }));
+
   setUndoPaidExtraItems(null);
 };
 
@@ -1419,11 +1475,14 @@ const undoSettleChange = () => {
         : parseFloat(data.savingsValue) || 0;
     const makeIt = income - totalExpenses - savings;
 
-    const paidExtraItems = data.extraItems.filter((i) => i.paid);
-    const checkingAdj = signedTotal(paidExtraItems, "checking");
-    const savingsAdj = signedTotal(paidExtraItems, "savings");
-    const baseChecking = (parseFloat(data.accounts.checking) || 0) + checkingAdj;
-    const baseSavings = (parseFloat(data.accounts.savings) || 0) + savingsAdj;
+    // const paidExtraItems = data.extraItems.filter((i) => i.paid);
+    // const checkingAdj = signedTotal(paidExtraItems, "checking");
+    // const savingsAdj = signedTotal(paidExtraItems, "savings");
+    // const baseChecking = (parseFloat(data.accounts.checking) || 0) + checkingAdj;
+    // const baseSavings = (parseFloat(data.accounts.savings) || 0) + savingsAdj;
+
+    const baseChecking = parseFloat(data.accounts.checking) || 0;
+    const baseSavings = parseFloat(data.accounts.savings) || 0;
 
     // If checking would go negative, automatically pull from savings to cover it
     // (limited to whatever savings actually has available).
@@ -1445,8 +1504,6 @@ const undoSettleChange = () => {
       income,
       savings,
       makeIt,
-      checkingAdj,
-      savingsAdj,
       realChecking,
       realSavings,
       transfer,
@@ -1475,7 +1532,7 @@ const undoSettleChange = () => {
     <div className="ledger-root">
       <header className="masthead">
         <div className="masthead-eyebrow">Household Ledger</div>
-        <h1>Stangel Residence Finances</h1>
+        <h1>Personal Finances</h1>
         {saveState === "saving" && <span className="save-pill">Saving…</span>}
         {saveState === "saved" && <span className="save-pill saved">Saved</span>}
       </header>
@@ -1547,7 +1604,7 @@ const undoSettleChange = () => {
             </div>
             <div className="balance-current">
               <span className="summary-label">
-                Current running balance {totals.checkingAdj !== 0 && `(${totals.checkingAdj > 0 ? "+" : ""}${fmt(totals.checkingAdj)} from paid items below)`}
+                Current balance
               </span>
               <span className={`summary-value ${totals.realChecking < 0 ? "negative" : "income"}`}>
                 {fmt(totals.realChecking)}
