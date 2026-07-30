@@ -250,6 +250,9 @@
 .row.annual-row {
   grid-template-columns: 20px 20px 1fr 128px 108px 84px 26px;
 }
+.row.monthly-row {
+  grid-template-columns: 20px 20px 1fr 140px 108px 84px 26px;
+}
 
 .drag-handle {
   cursor: grab;
@@ -269,6 +272,7 @@
   @media (max-width: 640px) {
     .row.extra-row { grid-template-columns: 1fr; row-gap: 6px; padding-bottom: 12px; }
     .row.annual-row { grid-template-columns: 1fr; row-gap: 6px; padding-bottom: 12px; }
+    .row.monthly-row { grid-template-columns: 1fr; row-gap: 6px; padding-bottom: 12px; }
   }
   .row-head {
     font-family: 'IBM Plex Mono', monospace;
@@ -521,13 +525,13 @@ const genId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
 const defaultData = () => ({
   monthlyItems: [
-    { id: genId(), name: "Mortgage / Rent", type: "fixed", amount: 1800 },
-    { id: genId(), name: "Car payment", type: "fixed", amount: 420 },
-    { id: genId(), name: "Netflix", type: "fixed", amount: 17.99 },
-    { id: genId(), name: "Spotify", type: "fixed", amount: 11.99 },
-    { id: genId(), name: "Groceries", type: "variable", amount: 650 },
-    { id: genId(), name: "Gas (both cars)", type: "variable", amount: 220 },
-    { id: genId(), name: "Dog food & supplies", type: "variable", amount: 90 },
+    { id: genId(), name: "Mortgage / Rent", type: "fixed", amount: 1800, dimmed: false },
+    { id: genId(), name: "Car payment", type: "fixed", amount: 420, dimmed: false },
+    { id: genId(), name: "Netflix", type: "fixed", amount: 17.99, dimmed: false },
+    { id: genId(), name: "Spotify", type: "fixed", amount: 11.99, dimmed: false },
+    { id: genId(), name: "Groceries", type: "variable", amount: 650, dimmed: false },
+    { id: genId(), name: "Gas (both cars)", type: "variable", amount: 220, dimmed: false },
+    { id: genId(), name: "Dog food & supplies", type: "variable", amount: 90, dimmed: false },
   ],
   annualItems: [
     { id: genId(), name: "Propane tank lease", amount: 240, dueDate: "2026-10-01", movedThisCycle: false },
@@ -1146,6 +1150,201 @@ function AnnualBillsTable({
   );
 }
 
+function MonthlyItemsTable({
+  items,
+  onChange,
+  onAdd,
+  onRemove,
+  onReorder,
+  addLabel,
+  emptyLabel,
+  footerNote,
+  onMoveToOneOff,
+  onUndim,
+  onUndimSelected,
+  onDimSelected,
+}) {
+  const { draggingId, overId, startDrag, dragOverRow, dropOnRow, endDrag } = useSortableList(onReorder);
+  const [selectedIds, setSelectedIds] = useState(() => new Set());
+
+  const toggleSelect = (id) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const handleUndimSelected = () => {
+    if (selectedIds.size === 0) return;
+    onUndimSelected(Array.from(selectedIds));
+    setSelectedIds(new Set());
+  };
+
+  const handleDimSelected = () => {
+    if (selectedIds.size === 0) return;
+    onDimSelected(Array.from(selectedIds));
+    setSelectedIds(new Set());
+  };
+
+  const handleRemove = (id) => {
+    setSelectedIds((prev) => {
+      if (!prev.has(id)) return prev;
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
+    onRemove(id);
+  };
+
+  return (
+    <section className="ledger-panel">
+      <div className="panel-head">
+        <h2>Monthly spending</h2>
+        <p className="panel-sub">
+          Fixed bills you know exactly, plus everyday estimates like groceries and gas. Click "Move →"
+          once you've actually paid an item; that copies it into One-off spending &amp; deposits (as
+          unpaid) so you can track the real amount against checking/savings, and dims it here so its
+          budgeted estimate stops being counted below. Use "Dim"/"Undim" on their own to mark something
+          as handled without moving it, or to bring it back into the monthly total.
+        </p>
+      </div>
+
+      <div className="table-wrap">
+        <div className="row monthly-row row-head">
+          <span />
+          <span />
+          <span>Item</span>
+          <span>Type</span>
+          <span className="num">Amount</span>
+          <span />
+          <span className="row-action" />
+        </div>
+
+        {items.length === 0 && <div className="empty-row">{emptyLabel}</div>}
+
+        {items.map((item) => (
+          <div
+            key={item.id}
+            className={`row monthly-row ${draggingId === item.id ? "dragging" : ""} ${overId === item.id && draggingId && draggingId !== item.id ? "drag-over-target" : ""} ${item.dimmed ? "dimmed" : ""}`}
+            onDragOver={(e) => {
+              if (!draggingId) return;
+              e.preventDefault();
+              dragOverRow(item.id);
+            }}
+            onDrop={(e) => {
+              if (!draggingId) return;
+              e.preventDefault();
+              dropOnRow(item.id);
+            }}
+          >
+            <div
+              className="drag-handle"
+              title="Drag to reorder"
+              draggable
+              onDragStart={(e) => {
+                e.dataTransfer.effectAllowed = "move";
+                e.dataTransfer.setData("text/plain", item.id);
+                const rowEl = e.currentTarget.closest(".row");
+                if (rowEl && e.dataTransfer.setDragImage) {
+                  e.dataTransfer.setDragImage(rowEl, 20, 20);
+                }
+                startDrag(item.id);
+              }}
+              onDragEnd={endDrag}
+            >
+              ⋮⋮
+            </div>
+
+            <input
+              type="checkbox"
+              className="row-select"
+              checked={selectedIds.has(item.id)}
+              onChange={() => toggleSelect(item.id)}
+              aria-label={`Select ${item.name}`}
+              title='Select, then use "Dim selected" or "Undim selected" below'
+            />
+
+            <input
+              className="cell-input name-input"
+              type="text"
+              value={item.name}
+              placeholder="Item name"
+              onChange={(e) => onChange(item.id, { name: e.target.value })}
+            />
+
+            <div className="type-toggle">
+              <button
+                type="button"
+                className={item.type === "fixed" ? "active" : ""}
+                onClick={() => onChange(item.id, { type: "fixed" })}
+              >
+                Fixed
+              </button>
+              <button
+                type="button"
+                className={item.type === "variable" ? "active" : ""}
+                onClick={() => onChange(item.id, { type: "variable" })}
+              >
+                Estimate
+              </button>
+            </div>
+
+            <div className="amount-field">
+              <span className="dollar">$</span>
+              <input
+                className="cell-input num-input"
+                type="number"
+                step="0.01"
+                min="0"
+                inputMode="decimal"
+                value={item.amount}
+                onChange={(e) =>
+                  onChange(item.id, { amount: e.target.value === "" ? "" : parseFloat(e.target.value) })
+                }
+              />
+            </div>
+
+            {item.dimmed ? (
+              <button className="add-btn small" onClick={() => onUndim(item.id)}>
+                Undim
+              </button>
+            ) : (
+              <button className="add-btn small" onClick={() => onMoveToOneOff(item.id)}>
+                Move →
+              </button>
+            )}
+
+            <button className="row-remove" onClick={() => handleRemove(item.id)} aria-label={`Remove ${item.name}`}>
+              ×
+            </button>
+          </div>
+        ))}
+      </div>
+
+      <div className="panel-foot">
+        <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+          <button className="add-btn" onClick={onAdd}>
+            + {addLabel}
+          </button>
+          <button
+            className="add-btn"
+            onClick={handleDimSelected}
+            disabled={selectedIds.size === 0}
+          >
+            Dim selected{selectedIds.size > 0 ? ` (${selectedIds.size})` : ""}
+          </button>
+          <button className="add-btn" onClick={handleUndimSelected} disabled={selectedIds.size === 0}>
+            Undim selected{selectedIds.size > 0 ? ` (${selectedIds.size})` : ""}
+          </button>
+        </div>
+        {footerNote && <span className="foot-note">{footerNote}</span>}
+      </div>
+    </section>
+  );
+}
+
 function App() {
   const [data, setData] = useState(null);
   const [status, setStatus] = useState("loading");
@@ -1169,6 +1368,13 @@ function App() {
           merged.extraItems = parsed.extraItems.map((it) => ({
             ...it,
             paid: it.paid === undefined ? true : it.paid,
+          }));
+        }
+        // Migration: monthly items saved before dim/move-tracking existed.
+        if (Array.isArray(parsed.monthlyItems)) {
+          merged.monthlyItems = parsed.monthlyItems.map((it) => ({
+            ...it,
+            dimmed: it.dimmed === undefined ? false : it.dimmed,
           }));
         }
         // Migration: annual bills saved before due dates / move-tracking existed.
@@ -1417,6 +1623,55 @@ const dimAnnualItems = (ids) => {
   }));
 };
 
+// Copies a monthly item into the One-off spending & deposits list as a new
+// (unpaid) item — so it can be tracked precisely against checking/savings —
+// and dims it here so its budgeted estimate stops double-counting against
+// the monthly expense total while it's being tracked as an actual one-off.
+const moveMonthlyItemToOneOff = (id) => {
+  setData((d) => {
+    const item = d.monthlyItems.find((it) => it.id === id);
+    if (!item || item.dimmed) return d;
+    const newExtraItem = {
+      id: genId(),
+      name: item.name,
+      account: "checking",
+      direction: "subtract",
+      amount: item.amount,
+      paid: false,
+    };
+    return {
+      ...d,
+      monthlyItems: d.monthlyItems.map((it) => (it.id === id ? { ...it, dimmed: true } : it)),
+      extraItems: [...d.extraItems, newExtraItem],
+    };
+  });
+};
+
+const undimMonthlyItem = (id) => {
+  setData((d) => ({
+    ...d,
+    monthlyItems: d.monthlyItems.map((it) => (it.id === id ? { ...it, dimmed: false } : it)),
+  }));
+};
+
+const undimMonthlyItems = (ids) => {
+  if (!ids || ids.length === 0) return;
+  const idSet = new Set(ids);
+  setData((d) => ({
+    ...d,
+    monthlyItems: d.monthlyItems.map((it) => (idSet.has(it.id) ? { ...it, dimmed: false } : it)),
+  }));
+};
+
+const dimMonthlyItems = (ids) => {
+  if (!ids || ids.length === 0) return;
+  const idSet = new Set(ids);
+  setData((d) => ({
+    ...d,
+    monthlyItems: d.monthlyItems.map((it) => (idSet.has(it.id) ? { ...it, dimmed: true } : it)),
+  }));
+};
+
 // Sweeps whatever is currently sitting in checking (after paid one-off items
 // and any automatic overdraft transfer) into savings, resets checking to $0,
 // and archives the paid items whose effects are now baked into the balances.
@@ -1461,9 +1716,10 @@ const undoSettleChange = () => {
 
   const totals = useMemo(() => {
     if (!data) return null;
-    const fixed = sum(data.monthlyItems.filter((i) => i.type === "fixed"));
-    const variable = sum(data.monthlyItems.filter((i) => i.type === "variable"));
+    const fixed = sum(data.monthlyItems.filter((i) => i.type === "fixed" && !i.dimmed));
+    const variable = sum(data.monthlyItems.filter((i) => i.type === "variable" && !i.dimmed));
     const monthly = fixed + variable;
+    const dimmedMonthlyCount = data.monthlyItems.filter((i) => i.dimmed).length;
     const annual = sum(data.annualItems);
     const annualMonthly = annual / 12;
     // const totalExpenses = monthly + annualMonthly;
@@ -1498,6 +1754,7 @@ const undoSettleChange = () => {
       fixed,
       variable,
       monthly,
+      dimmedMonthlyCount,
       annual,
       annualMonthly,
       totalExpenses,
@@ -1690,18 +1947,28 @@ const undoSettleChange = () => {
       </section>
 
       <div className="grid">
-        <LineItemTable
-          title="Monthly spending"
-          subtitle="Fixed bills you know exactly, plus everyday estimates like groceries and gas."
+        <MonthlyItemsTable
           items={data.monthlyItems}
           onChange={updateItem("monthlyItems")}
-          onAdd={addItem("monthlyItems", { name: "New item", type: "variable", amount: 0 })}
+          onAdd={addItem("monthlyItems", { name: "New item", type: "variable", amount: 0, dimmed: false })}
           onRemove={removeItem("monthlyItems")}
           onReorder={reorderItems("monthlyItems")}
-          showType
+          onMoveToOneOff={moveMonthlyItemToOneOff}
+          onUndim={undimMonthlyItem}
+          onUndimSelected={undimMonthlyItems}
+          onDimSelected={dimMonthlyItems}
           addLabel="Add monthly item"
           emptyLabel="No monthly items yet — add your first bill or estimate."
-          footerNote={`Fixed ${fmt(totals.fixed)} + Estimated ${fmt(totals.variable)} = ${fmt(totals.monthly)} / mo`}
+          footerNote={
+            <div className="flex flex-col">
+              <span>{`Fixed ${fmt(totals.fixed)} + Estimated ${fmt(totals.variable)} = ${fmt(totals.monthly)} / mo`}</span>
+              {totals.dimmedMonthlyCount > 0 && (
+                <span className="text-sm opacity-80 mt-1">
+                  {totals.dimmedMonthlyCount} item{totals.dimmedMonthlyCount === 1 ? "" : "s"} dimmed — excluded from the total above
+                </span>
+              )}
+            </div>
+          }
         />
 
         <AnnualBillsTable
