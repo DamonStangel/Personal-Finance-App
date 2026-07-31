@@ -70,6 +70,30 @@
     line-height: 1.2;
     max-width: 640px;
   }
+  .masthead h1.editable-title {
+    cursor: pointer;
+    border-radius: 4px;
+    padding: 2px 6px;
+    margin-left: -6px;
+    transition: background 0.15s ease;
+  }
+  .masthead h1.editable-title:hover {
+    background: var(--paper-alt);
+  }
+  .masthead-title-input {
+    font-family: 'Source Serif 4', serif;
+    font-weight: 600;
+    font-size: clamp(22px, 3.4vw, 32px);
+    line-height: 1.2;
+    max-width: 640px;
+    width: 100%;
+    color: var(--ink);
+    background: var(--surface);
+    border: 1px solid var(--income);
+    border-radius: 4px;
+    padding: 2px 6px;
+    margin: 0 0 0 -7px;
+  }
   .masthead-meta {
     display: flex;
     flex-direction: column;
@@ -614,6 +638,8 @@
 const { useState, useEffect, useRef, useMemo, useCallback } = React;
 
 const STORAGE_KEY = "household-ledger-v1";
+const TITLE_KEY = "household-ledger-title-v1";
+const DEFAULT_TITLE = "Personal Finances";
 
 const genId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
@@ -1699,6 +1725,28 @@ function App() {
   const [undoPaidExtraItems, setUndoPaidExtraItems] = useState(null);
   const [undoSettle, setUndoSettle] = useState(null);
 
+  const [pageTitle, setPageTitle] = useState(() => {
+    try {
+      return localStorage.getItem(TITLE_KEY) || DEFAULT_TITLE;
+    } catch (err) {
+      return DEFAULT_TITLE;
+    }
+  });
+  const [editingTitle, setEditingTitle] = useState(false);
+  const [titleDraft, setTitleDraft] = useState(pageTitle);
+
+  const commitTitle = (value) => {
+    const trimmed = (value || "").trim() || DEFAULT_TITLE;
+    setPageTitle(trimmed);
+    setTitleDraft(trimmed);
+    setEditingTitle(false);
+    try {
+      localStorage.setItem(TITLE_KEY, trimmed);
+    } catch (err) {
+      console.error("Title save error:", err);
+    }
+  };
+
   useEffect(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
@@ -2064,11 +2112,14 @@ const undoSettleChange = () => {
     const fixed = sum(data.monthlyItems.filter((i) => i.type === "fixed" && !i.dimmed));
     const variable = sum(data.monthlyItems.filter((i) => i.type === "variable" && !i.dimmed));
     const monthly = fixed + variable;
-    const dimmedMonthlyCount = data.monthlyItems.filter((i) => i.dimmed).length;
+    const dimmedMonthlyItems = data.monthlyItems.filter((i) => i.dimmed);
+    const dimmedMonthlyCount = dimmedMonthlyItems.length;
+    const dimmedMonthlyTotal = sum(dimmedMonthlyItems);
+    const allMonthly = monthly + dimmedMonthlyTotal;
     const annual = sum(data.annualItems);
     const annualMonthly = annual / 12;
     // const totalExpenses = monthly + annualMonthly;
-    const totalExpenses = monthly;
+    const totalExpenses = allMonthly;
     const income = sum(data.incomeItems);
     const savings =
       data.savingsMode === "percent"
@@ -2100,6 +2151,8 @@ const undoSettleChange = () => {
       variable,
       monthly,
       dimmedMonthlyCount,
+      dimmedMonthlyTotal,
+      allMonthly,
       annual,
       annualMonthly,
       totalExpenses,
@@ -2124,6 +2177,9 @@ const undoSettleChange = () => {
   const barSegments = [
     { key: "fixed", label: "Fixed bills", value: totals.fixed, color: "var(--expense)" },
     { key: "variable", label: "Everyday estimate", value: totals.variable, color: "var(--expense-soft)" },
+    ...(totals.dimmedMonthlyTotal > 0
+      ? [{ key: "dimmed", label: "Dimmed (tracked as one-off)", value: totals.dimmedMonthlyTotal, color: "var(--ink-soft)" }]
+      : []),
     { key: "annual", label: "Annual bills (÷12)", value: totals.annualMonthly, color: "var(--expense-deep)" },
     { key: "savings", label: "Savings", value: totals.savings, color: "var(--savings)" },
     { key: "makeit", label: "Make-it money", value: Math.max(totals.makeIt, 0), color: "var(--income)" },
@@ -2136,7 +2192,36 @@ const undoSettleChange = () => {
         <div className="masthead-top">
           <div>
             <div className="masthead-eyebrow">Household Ledger</div>
-            <h1>Personal Finances</h1>
+            {editingTitle ? (
+              <input
+                className="masthead-title-input"
+                value={titleDraft}
+                autoFocus
+                onChange={(e) => setTitleDraft(e.target.value)}
+                onBlur={() => commitTitle(titleDraft)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    commitTitle(titleDraft);
+                  } else if (e.key === "Escape") {
+                    e.preventDefault();
+                    setTitleDraft(pageTitle);
+                    setEditingTitle(false);
+                  }
+                }}
+              />
+            ) : (
+              <h1
+                className="editable-title"
+                title="Click to rename"
+                onClick={() => {
+                  setTitleDraft(pageTitle);
+                  setEditingTitle(true);
+                }}
+              >
+                {pageTitle}
+              </h1>
+            )}
           </div>
           <div className="masthead-meta">
             <LiveClock />
@@ -2316,10 +2401,10 @@ const undoSettleChange = () => {
           emptyLabel="No monthly items yet — add your first bill or estimate."
           footerNote={
             <div className="flex flex-col">
-              <span>{`Fixed ${fmt(totals.fixed)} + Estimated ${fmt(totals.variable)} = ${fmt(totals.monthly)} / mo`}</span>
+              <span>{`Fixed ${fmt(totals.fixed)} + Estimated ${fmt(totals.variable)} = ${fmt(totals.monthly)} / mo.`}</span><br/>
               {totals.dimmedMonthlyCount > 0 && (
                 <span className="text-sm opacity-80 mt-1">
-                  {totals.dimmedMonthlyCount} item{totals.dimmedMonthlyCount === 1 ? "" : "s"} dimmed — excluded from the total above
+                  {totals.dimmedMonthlyCount} item{totals.dimmedMonthlyCount === 1 ? "" : "s"} dimmed — excluded from the total above, but still counted in Monthly expenses up top
                 </span>
               )}
             </div>
