@@ -11,7 +11,7 @@
 
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap');
-  html, body { margin: 0; padding: 0; background: #EDF1EC; }
+  html, body { margin: 0; padding: 0; background: var(--paper); }
 
   :root {
     --paper: #EDF1EC;
@@ -25,6 +25,24 @@
     --expense-soft: #A8687C;
     --expense-deep: #58283A;
     --savings: #96702F;
+  }
+
+  html[data-theme="dark"] {
+    --paper: #14181A;
+    --paper-alt: #1D2325;
+    --surface: #1B2124;
+    --ink: #E7ECE9;
+    --ink-soft: #93A29B;
+    --rule: #313B3D;
+    --income: #6FBF9E;
+    --expense: #E28FA3;
+    --expense-soft: #C97690;
+    --expense-deep: #F4AFC2;
+    --savings: #E0B15E;
+  }
+
+  html[data-theme="dark"] .warning {
+    background: #3A2530;
   }
 
   * { box-sizing: border-box; }
@@ -113,6 +131,19 @@
     border-radius: 100px;
   }
   .save-pill.saved { color: var(--income); border-color: var(--income); }
+
+  .theme-toggle {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    line-height: 1;
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 100px;
+    padding: 5px 10px;
+    color: var(--ink);
+    cursor: pointer;
+  }
+  .theme-toggle:hover { border-color: var(--ink); }
 
   .clock-chip {
     font-family: 'IBM Plex Mono', monospace;
@@ -639,6 +670,7 @@ const { useState, useEffect, useRef, useMemo, useCallback } = React;
 
 const STORAGE_KEY = "household-ledger-v1";
 const TITLE_KEY = "household-ledger-title-v1";
+const THEME_KEY = "household-ledger-theme-v1";
 const DEFAULT_TITLE = "Personal Finances";
 
 const genId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -743,6 +775,16 @@ function LineItemTable({
   footerNote,
 }) {
   const { draggingId, overId, startDrag, dragOverRow, dropOnRow, endDrag } = useSortableList(onReorder);
+  const nameInputRefs = useRef({});
+  const prevCountRef = useRef(items.length);
+  useEffect(() => {
+    if (items.length > prevCountRef.current) {
+      const lastItem = items[items.length - 1];
+      const el = nameInputRefs.current[lastItem.id];
+      if (el) el.focus();
+    }
+    prevCountRef.current = items.length;
+  }, [items.length]);
   return (
     <section className="ledger-panel">
       <div className="panel-head">
@@ -799,6 +841,10 @@ function LineItemTable({
               type="text"
               value={item.name}
               placeholder="Item name"
+              ref={(el) => {
+                if (el) nameInputRefs.current[item.id] = el;
+                else delete nameInputRefs.current[item.id];
+              }}
               onChange={(e) => onChange(item.id, { name: e.target.value })}
             />
 
@@ -869,6 +915,16 @@ function ExtraItemsTable({
 }) {
   const { draggingId, overId, startDrag, dragOverRow, dropOnRow, endDrag } = useSortableList(onReorder);
   const [selectedIds, setSelectedIds] = useState(() => new Set());
+  const nameInputRefs = useRef({});
+  const prevCountRef = useRef(items.length);
+  useEffect(() => {
+    if (items.length > prevCountRef.current) {
+      const lastItem = items[items.length - 1];
+      const el = nameInputRefs.current[lastItem.id];
+      if (el) el.focus();
+    }
+    prevCountRef.current = items.length;
+  }, [items.length]);
 
   const toggleSelect = (id) => {
     setSelectedIds((prev) => {
@@ -965,6 +1021,10 @@ function ExtraItemsTable({
             value={item.name}
             placeholder="e.g. Car repair"
             disabled={item.paid}
+            ref={(el) => {
+              if (el) nameInputRefs.current[item.id] = el;
+              else delete nameInputRefs.current[item.id];
+            }}
             onChange={(e) => onChange(item.id, { name: e.target.value })}
           />
 
@@ -1114,6 +1174,16 @@ function AnnualBillsTable({
 }) {
   const { draggingId, overId, startDrag, dragOverRow, dropOnRow, endDrag } = useSortableList(onReorder);
   const [selectedIds, setSelectedIds] = useState(() => new Set());
+  const nameInputRefs = useRef({});
+  const prevCountRef = useRef(items.length);
+  useEffect(() => {
+    if (items.length > prevCountRef.current) {
+      const lastItem = items[items.length - 1];
+      const el = nameInputRefs.current[lastItem.id];
+      if (el) el.focus();
+    }
+    prevCountRef.current = items.length;
+  }, [items.length]);
 
   const toggleSelect = (id) => {
     setSelectedIds((prev) => {
@@ -1220,6 +1290,10 @@ function AnnualBillsTable({
                 type="text"
                 value={item.name}
                 placeholder="Item name"
+                ref={(el) => {
+                  if (el) nameInputRefs.current[item.id] = el;
+                  else delete nameInputRefs.current[item.id];
+                }}
                 onChange={(e) => onChange(item.id, { name: e.target.value })}
               />
 
@@ -1313,6 +1387,16 @@ function MonthlyItemsTable({
 }) {
   const { draggingId, overId, startDrag, dragOverRow, dropOnRow, endDrag } = useSortableList(onReorder);
   const [selectedIds, setSelectedIds] = useState(() => new Set());
+  const nameInputRefs = useRef({});
+  const prevCountRef = useRef(items.length);
+  useEffect(() => {
+    if (items.length > prevCountRef.current) {
+      const lastItem = items[items.length - 1];
+      const el = nameInputRefs.current[lastItem.id];
+      if (el) el.focus();
+    }
+    prevCountRef.current = items.length;
+  }, [items.length]);
 
   const toggleSelect = (id) => {
     setSelectedIds((prev) => {
@@ -1421,6 +1505,10 @@ function MonthlyItemsTable({
               type="text"
               value={item.name}
               placeholder="Item name"
+              ref={(el) => {
+                if (el) nameInputRefs.current[item.id] = el;
+                else delete nameInputRefs.current[item.id];
+              }}
               onChange={(e) => onChange(item.id, { name: e.target.value })}
             />
 
@@ -1745,6 +1833,56 @@ function App() {
     } catch (err) {
       console.error("Title save error:", err);
     }
+  };
+
+  const [theme, setTheme] = useState(() => {
+    try {
+      const saved = localStorage.getItem(THEME_KEY);
+      if (saved === "light" || saved === "dark") return saved;
+    } catch (err) {
+      // ignore
+    }
+    if (typeof window !== "undefined" && window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) {
+      return "dark";
+    }
+    return "light";
+  });
+
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", theme);
+  }, [theme]);
+
+  // As long as the person hasn't explicitly picked a theme, keep following
+  // their system setting live (so switching the OS to dark at night updates
+  // this page automatically).
+  useEffect(() => {
+    let hasManualPref = false;
+    try {
+      hasManualPref = localStorage.getItem(THEME_KEY) !== null;
+    } catch (err) {
+      // ignore
+    }
+    if (hasManualPref || typeof window === "undefined" || !window.matchMedia) return;
+    const mql = window.matchMedia("(prefers-color-scheme: dark)");
+    const handleChange = (e) => setTheme(e.matches ? "dark" : "light");
+    if (mql.addEventListener) mql.addEventListener("change", handleChange);
+    else mql.addListener(handleChange);
+    return () => {
+      if (mql.removeEventListener) mql.removeEventListener("change", handleChange);
+      else mql.removeListener(handleChange);
+    };
+  }, []);
+
+  const toggleTheme = () => {
+    setTheme((t) => {
+      const next = t === "dark" ? "light" : "dark";
+      try {
+        localStorage.setItem(THEME_KEY, next);
+      } catch (err) {
+        console.error("Theme save error:", err);
+      }
+      return next;
+    });
   };
 
   useEffect(() => {
@@ -2224,6 +2362,14 @@ const undoSettleChange = () => {
             )}
           </div>
           <div className="masthead-meta">
+            <button
+              className="theme-toggle"
+              onClick={toggleTheme}
+              title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+              aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+            >
+              {theme === "dark" ? "🌙 Dark" : "☀️ Light"}
+            </button>
             <LiveClock />
             <WeatherWidget />
             {saveState === "saving" && <span className="save-pill">Saving…</span>}
@@ -2373,7 +2519,7 @@ const undoSettleChange = () => {
         <ExtraItemsTable
           items={data.extraItems}
           onChange={updateItem("extraItems")}
-          onAdd={addItem("extraItems", { name: "New item", account: "checking", direction: "subtract", amount: 0, paid: false })}
+          onAdd={addItem("extraItems", { name: "", account: "checking", direction: "subtract", amount: 0, paid: false })}
           onRemove={removeExtraItem}
           onClearAll={clearExtraItems}
           onUndoClear={undoExtraItemsChange}
@@ -2390,7 +2536,7 @@ const undoSettleChange = () => {
         <MonthlyItemsTable
           items={data.monthlyItems}
           onChange={updateItem("monthlyItems")}
-          onAdd={addItem("monthlyItems", { name: "New item", type: "variable", amount: 0, dimmed: false, dueDay: "" })}
+          onAdd={addItem("monthlyItems", { name: "", type: "variable", amount: 0, dimmed: false, dueDay: "" })}
           onRemove={removeItem("monthlyItems")}
           onReorder={reorderItems("monthlyItems")}
           onMoveToOneOff={moveMonthlyItemToOneOff}
@@ -2414,7 +2560,7 @@ const undoSettleChange = () => {
         <AnnualBillsTable
           items={data.annualItems}
           onChange={updateItem("annualItems")}
-          onAdd={addItem("annualItems", { name: "New annual bill", amount: 0, dueDate: "", movedThisCycle: false })}
+          onAdd={addItem("annualItems", { name: "", amount: 0, dueDate: "", movedThisCycle: false })}
           onRemove={removeItem("annualItems")}
           onReorder={reorderItems("annualItems")}
           onMoveToOneOff={moveAnnualItemToOneOff}
@@ -2438,7 +2584,7 @@ const undoSettleChange = () => {
           subtitle="Average monthly take-home pay per person or paycheck."
           items={data.incomeItems}
           onChange={updateItem("incomeItems")}
-          onAdd={addItem("incomeItems", { name: "New income source", amount: 0 })}
+          onAdd={addItem("incomeItems", { name: "", amount: 0 })}
           onRemove={removeItem("incomeItems")}
           onReorder={reorderItems("incomeItems")}
           showType={false}
