@@ -1885,101 +1885,107 @@ function ProjectionsPanel({ income, monthlyExpenses, currentSavings }) {
         </p>
       </div>
       
-      <div className="balance-inputs" style={{ marginBottom: "30px", display: "flex", flexDirection: "column", gap: "12px" }}>
-        <div className="balance-block" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <span className="field-label" style={{ marginBottom: 0 }}>Optional surprise buffer / mo:</span>
-            <div className="amount-field big" style={{ flex: 1 }}>
-              <span className="dollar">$</span>
-              <input
-                className="cell-input num-input"
-                type="number"
-                min="0"
-                step="0.01"
-                value={surpriseBuffer}
-                onChange={(e) => setSurpriseBuffer(e.target.value === "" ? 0 : parseFloat(e.target.value))}
-              />
-            </div>
-        </div>
-
-        <div className="balance-block" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <span className="field-label" style={{ marginBottom: 0 }}>Savings Goal target:</span>
-            <div className="amount-field big" style={{ flex: 1 }}>
-              <span className="dollar">$</span>
-              <input
-                className="cell-input num-input"
-                type="number"
-                min="1"
-                step="1000"
-                value={savingsGoal}
-                onChange={(e) => setSavingsGoal(e.target.value === "" ? 1 : parseFloat(e.target.value))}
-              />
-            </div>
-        </div>
-      </div>
-
-      <div className="projections-chart" style={{ display: "flex", alignItems: "flex-end", gap: "24px", overflowX: "auto", paddingBottom: "10px" }}>
+      {/* Side-by-Side Layout Grid */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "24px", alignItems: "start" }} className="projections-split-grid">
         
-        {periods.map((months, index) => {
-          const safeMonths = months || 0; 
-          const val = currentSavings + (monthlyNet * safeMonths); 
-          
-          const safeGoal = Math.max(savingsGoal, 1);
-          const rawPercent = (val / safeGoal) * 100;
-          const percent = Math.min(Math.max(rawPercent, 0), 100); 
-          
-          return (
-            <div key={index} style={{ display: "flex", flexDirection: "column", alignItems: "center", width: "70px", flexShrink: 0 }}>
-              
-              {/* Value Label */}
-              <span className={val >= 0 ? "savings" : "negative"} style={{ fontWeight: 600, fontSize: "11px", fontFamily: "'IBM Plex Mono', monospace", marginBottom: "8px", textAlign: "center" }}>
-                {fmt(val)}
-              </span>
-              
-              {/* Vertical Bar */}
-              <div className="bar" style={{ margin: 0, width: "30px", height: "200px", background: "var(--paper-alt)", display: "flex", flexDirection: "column", justifyContent: "flex-end", borderRadius: "4px", overflow: "hidden", marginBottom: "12px" }}>
-                 <div 
-                   className="bar-seg" 
-                   style={{ 
-                     height: `${percent}%`, 
-                     width: "100%",
-                     background: val >= 0 ? "var(--savings)" : "var(--expense-deep)",
-                     transition: "height 0.3s ease"
-                   }} 
-                 />
-              </div>
-
-              {/* Editable Month Input */}
-              <div style={{ display: "flex", alignItems: "center", gap: "4px", marginBottom: "4px" }}>
-                <input 
-                  type="number" 
-                  min="1"
+        {/* Left Side: Inputs */}
+        <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+          <div className="balance-block" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span className="field-label" style={{ marginBottom: 0 }}>Optional surprise buffer / month (Surprise bills):</span>
+              <div className="amount-field big" style={{ flex: 1 }}>
+                <span className="dollar">$</span>
+                <input
                   className="cell-input num-input"
-                  style={{ width: "45px", padding: "4px", textAlign: "center", fontSize: "12px" }}
-                  value={months}
-                  onChange={(e) => handlePeriodChange(index, e.target.value)}
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={surpriseBuffer}
+                  onChange={(e) => setSurpriseBuffer(e.target.value === "" ? 0 : parseFloat(e.target.value))}
                 />
-                <span style={{ fontSize: "10px", color: "var(--ink-soft)" }}>mo</span>
               </div>
+          </div>
 
-              {/* Remove Button */}
-              <button 
-                onClick={() => removePeriod(index)}
-                style={{ background: "transparent", border: "none", color: "var(--expense-deep)", fontSize: "12px", cursor: "pointer", padding: "2px" }}
-              >
-                Remove
-              </button>
-            </div>
-          );
-        })}
+          <div className="balance-block" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span className="field-label" style={{ marginBottom: 0 }}>Savings Goal target:</span>
+              <div className="amount-field big" style={{ flex: 1 }}>
+                <span className="dollar">$</span>
+                <input
+                  className="cell-input num-input"
+                  type="number"
+                  min="1"
+                  step="1000"
+                  value={savingsGoal}
+                  onChange={(e) => setSavingsGoal(e.target.value === "" ? 1 : parseFloat(e.target.value))}
+                />
+              </div>
+          </div>
+        </div>
 
-        {/* Add New Period Button */}
-        <div style={{ display: "flex", height: "200px", alignItems: "center", paddingBottom: "50px" }}>
-          <button 
-            onClick={addPeriod}
-            style={{ padding: "8px 12px", background: "var(--paper-alt)", border: "1px dashed var(--ink-soft)", borderRadius: "6px", cursor: "pointer", whiteSpace: "nowrap" }}
-          >
-            + Add Milestone
-          </button>
+        {/* Right Side: Bar Chart */}
+        <div className="projections-chart" style={{ display: "flex", alignItems: "flex-end", gap: "16px", overflowX: "auto", paddingBottom: "10px" }}>
+          
+          {periods.map((months, index) => {
+            const safeMonths = months || 0; 
+            const val = currentSavings + (monthlyNet * safeMonths); 
+            
+            const safeGoal = Math.max(savingsGoal, 1);
+            const rawPercent = (val / safeGoal) * 100;
+            const percent = Math.min(Math.max(rawPercent, 0), 100); 
+            
+            return (
+              <div key={index} style={{ display: "flex", flexDirection: "column", alignItems: "center", width: "60px", flexShrink: 0 }}>
+                
+                {/* Value Label */}
+                <span className={val >= 0 ? "savings" : "negative"} style={{ fontWeight: 600, fontSize: "10px", fontFamily: "'IBM Plex Mono', monospace", marginBottom: "6px", textAlign: "center" }}>
+                  {fmt(val)}
+                </span>
+                
+                {/* Vertical Bar */}
+                <div className="bar" style={{ margin: 0, width: "24px", height: "180px", background: "var(--paper-alt)", display: "flex", flexDirection: "column", justifyContent: "flex-end", borderRadius: "4px", overflow: "hidden", marginBottom: "10px" }}>
+                   <div 
+                     className="bar-seg" 
+                     style={{ 
+                       height: `${percent}%`, 
+                       width: "100%",
+                       background: val >= 0 ? "var(--savings)" : "var(--expense-deep)",
+                       transition: "height 0.3s ease"
+                     }} 
+                   />
+                </div>
+
+                {/* Editable Month Input */}
+                <div style={{ display: "flex", alignItems: "center", gap: "4px", marginBottom: "4px" }}>
+                  <input 
+                    type="number" 
+                    min="1"
+                    className="cell-input num-input"
+                    style={{ width: "40px", padding: "2px", textAlign: "center", fontSize: "11px" }}
+                    value={months}
+                    onChange={(e) => handlePeriodChange(index, e.target.value)}
+                  />
+                  <span style={{ fontSize: "10px", color: "var(--ink-soft)" }}>mo</span>
+                </div>
+
+                {/* Remove Button */}
+                <button 
+                  onClick={() => removePeriod(index)}
+                  style={{ background: "transparent", border: "none", color: "var(--expense-deep)", fontSize: "11px", cursor: "pointer", padding: "2px" }}
+                >
+                  Remove
+                </button>
+              </div>
+            );
+          })}
+
+          {/* Add New Period Button */}
+          <div style={{ display: "flex", height: "180px", alignItems: "center", paddingBottom: "40px" }}>
+            <button 
+              onClick={addPeriod}
+              style={{ padding: "6px 10px", background: "var(--paper-alt)", border: "1px dashed var(--ink-soft)", borderRadius: "6px", cursor: "pointer", whiteSpace: "nowrap", fontSize: "11px" }}
+            >
+              Add Milestone
+            </button>
+          </div>
         </div>
 
       </div>
