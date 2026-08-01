@@ -794,7 +794,7 @@ function LineItemTable({
 
 <div className="table-wrap">
         <div className={`row row-head ${showType ? "with-type" : ""}`}>
-          <span /> {/* <-- NEW: Empty space for the handle column */}
+          <span />
           <span>Item</span>
           {showType && <span>Type</span>}
           <span className="num">Amount</span>
@@ -935,6 +935,15 @@ function ExtraItemsTable({
     });
   };
 
+  const allSelected = items.length > 0 && selectedIds.size === items.length;
+  const toggleSelectAll = () => {
+    if (allSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(items.map((i) => i.id)));
+    }
+  };
+
   const handleRemove = (id) => {
     setSelectedIds((prev) => {
       if (!prev.has(id)) return prev;
@@ -961,7 +970,14 @@ function ExtraItemsTable({
     <div className="table-wrap extra-table">
 <div className="row extra-row row-head">
         <span />
-        <span />
+        <input 
+          type="checkbox" 
+          className="row-select" 
+          checked={allSelected} 
+          onChange={toggleSelectAll} 
+          title="Select all"
+          disabled={items.length === 0}
+        />
         <span>Item</span>
         <span>Account</span>
         <span>Direction</span>
@@ -1194,6 +1210,15 @@ function AnnualBillsTable({
     });
   };
 
+  const allSelected = items.length > 0 && selectedIds.size === items.length;
+  const toggleSelectAll = () => {
+    if (allSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(items.map((i) => i.id)));
+    }
+  };
+
   const handleUndimSelected = () => {
     if (selectedIds.size === 0) return;
     onUndimSelected(Array.from(selectedIds));
@@ -1231,7 +1256,14 @@ function AnnualBillsTable({
       <div className="table-wrap">
         <div className="row annual-row row-head">
           <span />
-          <span />
+          <input 
+            type="checkbox" 
+            className="row-select" 
+            checked={allSelected} 
+            onChange={toggleSelectAll} 
+            title="Select all"
+            disabled={items.length === 0}
+          />
           <span>Item</span>
           <span>Due date</span>
           <span className="num">Amount</span>
@@ -1407,6 +1439,15 @@ function MonthlyItemsTable({
     });
   };
 
+  const allSelected = items.length > 0 && selectedIds.size === items.length;
+  const toggleSelectAll = () => {
+    if (allSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(items.map((i) => i.id)));
+    }
+  };
+
   const handleUndimSelected = () => {
     if (selectedIds.size === 0) return;
     onUndimSelected(Array.from(selectedIds));
@@ -1447,7 +1488,14 @@ function MonthlyItemsTable({
       <div className="table-wrap">
         <div className="row monthly-row row-head">
           <span />
-          <span />
+          <input 
+            type="checkbox" 
+            className="row-select" 
+            checked={allSelected} 
+            onChange={toggleSelectAll} 
+            title="Select all"
+            disabled={items.length === 0}
+          />
           <span>Item</span>
           <span>Type</span>
           <span>Due day</span>
@@ -1798,6 +1846,99 @@ function UpcomingBillsPanel({ monthlyItems, annualItems }) {
             </span>
           </div>
         ))}
+      </div>
+    </section>
+  );
+}
+
+function ProjectionsPanel({ income, monthlyExpenses, currentSavings }) {
+  const [surpriseBuffer, setSurpriseBuffer] = useState(300);
+  
+  // 1. Add our new state for the Savings Goal, defaulting to 50k
+  const [savingsGoal, setSavingsGoal] = useState(50000); 
+  
+  const monthlyNet = income - monthlyExpenses - surpriseBuffer;
+  
+  const periods = [
+    { label: "3 Months", months: 3 },
+    { label: "6 Months", months: 6 },
+    { label: "9 Months", months: 9 },
+    { label: "1 Year", months: 12 },
+  ];
+
+  return (
+    <section className="ledger-panel wide-panel">
+      <div className="panel-head">
+        <h2>Projected Savings</h2>
+        <p className="panel-sub">
+          Displays projected cash flow across future intervals based on your monthly income minus your monthly spending bills, starting with the current balance you entered in the Money Market/Savings section.
+        </p>
+      </div>
+      
+      {/* 2. Added a flex column layout to the wrapper so the inputs stack nicely */}
+      <div className="balance-inputs" style={{ marginBottom: "20px", display: "flex", flexDirection: "column", gap: "12px" }}>
+        
+        {/* Surprise Buffer Input */}
+        <div className="balance-block" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span className="field-label" style={{ marginBottom: 0 }}>Optional surprise buffer / mo:</span>
+            <div className="amount-field big" style={{ flex: 1 }}>
+              <span className="dollar">$</span>
+              <input
+                className="cell-input num-input"
+                type="number"
+                min="0"
+                step="0.01"
+                value={surpriseBuffer}
+                onChange={(e) => setSurpriseBuffer(e.target.value === "" ? 0 : parseFloat(e.target.value))}
+              />
+            </div>
+        </div>
+
+        {/* 3. New Savings Goal Input */}
+        <div className="balance-block" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span className="field-label" style={{ marginBottom: 0 }}>Savings Goal target:</span>
+            <div className="amount-field big" style={{ flex: 1 }}>
+              <span className="dollar">$</span>
+              <input
+                className="cell-input num-input"
+                type="number"
+                min="1"
+                step="1000"
+                value={savingsGoal}
+                onChange={(e) => setSavingsGoal(e.target.value === "" ? 1 : parseFloat(e.target.value))}
+              />
+            </div>
+        </div>
+
+      </div>
+
+      <div className="projections-chart">
+        {periods.map(p => {
+          const val = currentSavings + (monthlyNet * p.months); 
+          
+          // 4. Calculate the percent based on the goal, and cap it at 100% so the CSS doesn't break out of the bar container
+          const safeGoal = Math.max(savingsGoal, 1); // Prevent dividing by zero if the user clears the input
+          const rawPercent = (val / safeGoal) * 100;
+          const percent = Math.min(Math.max(rawPercent, 0), 100); 
+          
+          return (
+            <div key={p.months} style={{ marginBottom: "16px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", fontFamily: "'IBM Plex Mono', monospace", marginBottom: "6px" }}>
+                <span style={{ color: "var(--ink-soft)" }}>{p.label}</span>
+                <span className={val >= 0 ? "savings" : "negative"} style={{ fontWeight: 600 }}>{fmt(val)}</span>
+              </div>
+              <div className="bar" style={{ margin: 0, height: "12px", background: "var(--paper-alt)" }}>
+                 <div 
+                   className="bar-seg" 
+                   style={{ 
+                     width: `${percent}%`, 
+                     background: val >= 0 ? "var(--savings)" : "var(--expense-deep)" 
+                   }} 
+                 />
+              </div>
+            </div>
+          );
+        })}
       </div>
     </section>
   );
@@ -2656,6 +2797,12 @@ const undoSettleChange = () => {
           )}
         </section>
       </div>
+
+      <ProjectionsPanel 
+        income={totals.income} 
+        monthlyExpenses={totals.allMonthly} 
+        currentSavings={totals.realSavings} 
+      />
 
       <footer className="ledger-footer">
         Figures are stored privately and only visible to you. Annual bills are automatically divided by
