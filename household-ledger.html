@@ -1634,7 +1634,7 @@ function MonthlyItemsTable({
               </button>
             )}
 
-            <button className="row-remove" onClick={() => handleRemove(item.id)} aria-label={`Remove ${item.name}`}>
+            <button className="row-remove" onClick={() => onRemove(item.id)} aria-label={`Remove ${item.name}`}>
               ×
             </button>
           </div>
@@ -1876,13 +1876,13 @@ function ProjectionsPanel({ income, monthlyExpenses, currentSavings }) {
     setPeriods(periods.filter((_, i) => i !== index));
   };
 
+  const AXIS_TICKS = [100, 75, 50, 25, 0];
+  const CHART_HEIGHT = 180;
+
   return (
     <section className="ledger-panel wide-panel">
       <div className="panel-head">
         <h2>Projected Savings</h2>
-        <p className="panel-sub">
-          Displays projected cash flow across future intervals based on your monthly income minus your monthly spending bills, starting with your current savings balance. Edit the months below to set custom milestones!
-        </p>
       </div>
       
       {/* Side-by-Side Layout Grid */}
@@ -1890,8 +1890,12 @@ function ProjectionsPanel({ income, monthlyExpenses, currentSavings }) {
         
         {/* Left Side: Inputs */}
         <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+          <p className="panel-sub" style={{ marginBottom: 0 }}>
+            Displays projected cash flow across future intervals based on your monthly income minus your monthly spending bills, starting with your current savings balance. Edit the months below to set custom milestones!
+          </p>
+
           <div className="balance-block" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <span className="field-label" style={{ marginBottom: 0 }}>Optional surprise buffer / month (Surprise bills):</span>
+              <span className="field-label" style={{ marginBottom: 0, width: "190px", flexShrink: 0, whiteSpace: "normal" }}>Optional surprise buffer / month (Surprise bills):</span>
               <div className="amount-field big" style={{ flex: 1 }}>
                 <span className="dollar">$</span>
                 <input
@@ -1906,7 +1910,7 @@ function ProjectionsPanel({ income, monthlyExpenses, currentSavings }) {
           </div>
 
           <div className="balance-block" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <span className="field-label" style={{ marginBottom: 0 }}>Savings Goal target:</span>
+              <span className="field-label" style={{ marginBottom: 0, width: "190px", flexShrink: 0, whiteSpace: "normal" }}>Savings Goal target:</span>
               <div className="amount-field big" style={{ flex: 1 }}>
                 <span className="dollar">$</span>
                 <input
@@ -1922,68 +1926,109 @@ function ProjectionsPanel({ income, monthlyExpenses, currentSavings }) {
         </div>
 
         {/* Right Side: Bar Chart */}
-        <div className="projections-chart" style={{ display: "flex", alignItems: "flex-end", gap: "16px", overflowX: "auto", paddingBottom: "10px" }}>
-          
-          {periods.map((months, index) => {
-            const safeMonths = months || 0; 
-            const val = currentSavings + (monthlyNet * safeMonths); 
-            
-            const safeGoal = Math.max(savingsGoal, 1);
-            const rawPercent = (val / safeGoal) * 100;
-            const percent = Math.min(Math.max(rawPercent, 0), 100); 
-            
-            return (
-              <div key={index} style={{ display: "flex", flexDirection: "column", alignItems: "center", width: "60px", flexShrink: 0 }}>
-                
-                {/* Value Label */}
-                <span className={val >= 0 ? "savings" : "negative"} style={{ fontWeight: 600, fontSize: "10px", fontFamily: "'IBM Plex Mono', monospace", marginBottom: "6px", textAlign: "center" }}>
-                  {fmt(val)}
-                </span>
-                
-                {/* Vertical Bar */}
-                <div className="bar" style={{ margin: 0, width: "24px", height: "180px", background: "var(--paper-alt)", display: "flex", flexDirection: "column", justifyContent: "flex-end", borderRadius: "4px", overflow: "hidden", marginBottom: "10px" }}>
-                   <div 
-                     className="bar-seg" 
-                     style={{ 
-                       height: `${percent}%`, 
-                       width: "100%",
-                       background: val >= 0 ? "var(--savings)" : "var(--expense-deep)",
-                       transition: "height 0.3s ease"
-                     }} 
-                   />
-                </div>
+        <div>
+          <div className="projections-chart" style={{ display: "flex", alignItems: "flex-end", gap: "16px", overflowX: "auto", paddingBottom: "10px" }}>
 
-                {/* Editable Month Input */}
-                <div style={{ display: "flex", alignItems: "center", gap: "4px", marginBottom: "4px" }}>
-                  <input 
-                    type="number" 
-                    min="1"
-                    className="cell-input num-input"
-                    style={{ width: "40px", padding: "2px", textAlign: "center", fontSize: "11px" }}
-                    value={months}
-                    onChange={(e) => handlePeriodChange(index, e.target.value)}
-                  />
-                  <span style={{ fontSize: "10px", color: "var(--ink-soft)" }}>mo</span>
-                </div>
-
-                {/* Remove Button */}
-                <button 
-                  onClick={() => removePeriod(index)}
-                  style={{ background: "transparent", border: "none", color: "var(--expense-deep)", fontSize: "11px", cursor: "pointer", padding: "2px" }}
-                >
-                  Remove
-                </button>
+            {/* Y Axis */}
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", flexShrink: 0 }}>
+              <span style={{ height: "19px", marginBottom: "6px" }} />
+              <div style={{ height: `${CHART_HEIGHT}px`, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+                {AXIS_TICKS.map((tick) => (
+                  <span
+                    key={tick}
+                    style={{
+                      fontSize: "10px",
+                      fontFamily: "'IBM Plex Mono', monospace",
+                      color: "var(--ink-soft)",
+                      paddingRight: "6px",
+                      transform: "translateY(-50%)",
+                    }}
+                  >
+                    {tick}%
+                  </span>
+                ))}
               </div>
-            );
-          })}
+            </div>
 
-          {/* Add New Period Button */}
-          <div style={{ display: "flex", height: "180px", alignItems: "center", paddingBottom: "40px" }}>
+            {periods.map((months, index) => {
+              const safeMonths = months || 0; 
+              const val = currentSavings + (monthlyNet * safeMonths); 
+              
+              const safeGoal = Math.max(savingsGoal, 1);
+              const rawPercent = (val / safeGoal) * 100;
+              const percent = Math.min(Math.max(rawPercent, 0), 100); 
+              
+              return (
+                <div key={index} style={{ display: "flex", flexDirection: "column", alignItems: "center", width: "60px", flexShrink: 0 }}>
+                  
+                  {/* Value Label */}
+                  <span className={val >= 0 ? "savings" : "negative"} style={{ fontWeight: 600, fontSize: "10px", fontFamily: "'IBM Plex Mono', monospace", marginBottom: "6px", textAlign: "center" }}>
+                    {fmt(val)}
+                  </span>
+                  
+                  {/* Vertical Bar */}
+                  <div
+                    className="bar"
+                    title={`${percent.toFixed(0)}% of goal filled`}
+                    style={{
+                      margin: 0,
+                      width: "24px",
+                      height: `${CHART_HEIGHT}px`,
+                      background: "var(--paper-alt)",
+                      backgroundImage: "repeating-linear-gradient(to top, var(--rule) 0, var(--rule) 1px, transparent 1px, transparent 25%)",
+                      display: "flex",
+                      flexDirection: "column",
+                      justifyContent: "flex-end",
+                      borderRadius: "4px",
+                      overflow: "hidden",
+                      marginBottom: "10px",
+                      cursor: "default",
+                    }}
+                  >
+                     <div 
+                       className="bar-seg" 
+                       title={`${percent.toFixed(0)}% of goal filled`}
+                       style={{ 
+                         height: `${percent}%`, 
+                         width: "100%",
+                         background: val >= 0 ? "var(--savings)" : "var(--expense-deep)",
+                         transition: "height 0.3s ease"
+                       }} 
+                     />
+                  </div>
+
+                  {/* Editable Month Input */}
+                  <div style={{ display: "flex", alignItems: "center", gap: "4px", marginBottom: "4px" }}>
+                    <input 
+                      type="number" 
+                      min="1"
+                      className="cell-input num-input"
+                      style={{ width: "40px", padding: "2px", textAlign: "center", fontSize: "11px" }}
+                      value={months}
+                      onChange={(e) => handlePeriodChange(index, e.target.value)}
+                    />
+                    <span style={{ fontSize: "10px", color: "var(--ink-soft)" }}>mo</span>
+                  </div>
+
+                  {/* Remove Button */}
+                  <button 
+                    onClick={() => removePeriod(index)}
+                    style={{ background: "transparent", border: "none", color: "var(--expense-deep)", fontSize: "11px", cursor: "pointer", padding: "2px" }}
+                  >
+                    Remove
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Add New Milestone Button */}
+          <div style={{ display: "flex", justifyContent: "center", marginTop: "6px" }}>
             <button 
               onClick={addPeriod}
-              style={{ padding: "6px 10px", background: "var(--paper-alt)", border: "1px dashed var(--ink-soft)", borderRadius: "6px", cursor: "pointer", whiteSpace: "nowrap", fontSize: "11px" }}
+              style={{ padding: "6px 14px", background: "var(--paper-alt)", border: "1px dashed var(--ink-soft)", borderRadius: "6px", cursor: "pointer", whiteSpace: "nowrap", fontSize: "11px" }}
             >
-              Add Milestone
+              + Add Milestone
             </button>
           </div>
         </div>
