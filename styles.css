@@ -685,6 +685,59 @@
    Responsive additions — mobile / small-screen support
    ============================================================ */
 
+/* Monthly spending and annual bills have several controls in each row. When
+   their panels share a two-column grid, the fixed-width controls can consume
+   the entire row and leave the item name only a few characters wide. Give
+   these panels the full page width before that happens, then trim the
+   secondary controls slightly for laptops and narrow browser windows. */
+@media (max-width: 1320px) {
+  .monthly-panel,
+  .annual-panel {
+    grid-column: 1 / -1;
+  }
+
+  .row.monthly-row {
+    grid-template-columns: 16px 16px minmax(180px, 1fr) 116px 66px 86px 66px 22px;
+    gap: 6px;
+  }
+  .row.annual-row {
+    grid-template-columns: 16px 16px minmax(180px, 1fr) 112px 86px 70px 22px;
+    gap: 6px;
+  }
+  .row.monthly-row .type-toggle {
+    font-size: 10px;
+  }
+  .row.monthly-row .type-toggle button {
+    padding: 4px 5px;
+  }
+  .row.monthly-row .due-day-input {
+    width: 32px;
+  }
+  .row.monthly-row .due-day-prefix {
+    font-size: 10px;
+  }
+  .row.annual-row .date-input,
+  .row.monthly-row .num-input,
+  .row.annual-row .num-input,
+  .row.monthly-row .amount-field,
+  .row.annual-row .amount-field {
+    min-width: 0;
+  }
+  .row.annual-row .date-input {
+    width: 100%;
+  }
+}
+
+/* Restore the single-column card layout on phones. This comes after the
+   medium-width rules above so the compact desktop column definitions do not
+   override the mobile stack. */
+@media (max-width: 640px) {
+  .row.monthly-row,
+  .row.annual-row {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* Tighten container padding a bit further on small phones so content
    isn't fighting the clamp() minimum for space. */
 @media (max-width: 480px) {
