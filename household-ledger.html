@@ -9,659 +9,7 @@
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
-<style>
-  @import url('https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap');
-  html, body { margin: 0; padding: 0; background: var(--paper); }
-
-  :root {
-    --paper: #EDF1EC;
-    --paper-alt: #E1E8E0;
-    --surface: #FBFCFA;
-    --ink: #17241F;
-    --ink-soft: #4E5D57;
-    --rule: #C7D1C6;
-    --income: #2F6F5E;
-    --expense: #7A3B4E;
-    --expense-soft: #A8687C;
-    --expense-deep: #58283A;
-    --savings: #96702F;
-  }
-
-  html[data-theme="dark"] {
-    --paper: #14181A;
-    --paper-alt: #1D2325;
-    --surface: #1B2124;
-    --ink: #E7ECE9;
-    --ink-soft: #93A29B;
-    --rule: #313B3D;
-    --income: #6FBF9E;
-    --expense: #E28FA3;
-    --expense-soft: #C97690;
-    --expense-deep: #F4AFC2;
-    --savings: #E0B15E;
-  }
-
-  html[data-theme="dark"] .warning {
-    background: #3A2530;
-  }
-
-  * { box-sizing: border-box; }
-
-  .ledger-root {
-    background: var(--paper);
-    color: var(--ink);
-    font-family: 'Inter', sans-serif;
-    padding: 32px clamp(16px, 4vw, 48px) 48px;
-    min-height: 100%;
-    max-width: 1600px;
-    margin: 0 auto;
-  }
-
-  .loading-state {
-    font-family: 'IBM Plex Mono', monospace;
-    color: var(--ink-soft);
-    padding: 64px 0;
-    text-align: center;
-  }
-
-  .masthead { position: relative; margin-bottom: 28px; padding-bottom: 18px; border-bottom: 1px solid var(--rule); }
-  .masthead-top {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 18px;
-    flex-wrap: wrap;
-  }
-  .masthead-eyebrow {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 12px;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    color: var(--ink-soft);
-    margin-bottom: 6px;
-  }
-  .masthead h1 {
-    font-family: 'Source Serif 4', serif;
-    font-weight: 600;
-    font-size: clamp(22px, 3.4vw, 32px);
-    margin: 0;
-    line-height: 1.2;
-    max-width: 640px;
-  }
-  .masthead h1.editable-title {
-    cursor: pointer;
-    border-radius: 4px;
-    padding: 2px 6px;
-    margin-left: -6px;
-    transition: background 0.15s ease;
-  }
-  .masthead h1.editable-title:hover {
-    background: var(--paper-alt);
-  }
-  .masthead-title-input {
-    font-family: 'Source Serif 4', serif;
-    font-weight: 600;
-    font-size: clamp(22px, 3.4vw, 32px);
-    line-height: 1.2;
-    max-width: 640px;
-    width: 100%;
-    color: var(--ink);
-    background: var(--surface);
-    border: 1px solid var(--income);
-    border-radius: 4px;
-    padding: 2px 6px;
-    margin: 0 0 0 -7px;
-  }
-  .masthead-meta {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    gap: 6px;
-  }
-  @media (max-width: 640px) {
-    .masthead-meta { align-items: flex-start; }
-  }
-  .save-pill {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 11px;
-    color: var(--ink-soft);
-    background: var(--surface);
-    border: 1px solid var(--rule);
-    padding: 4px 10px;
-    border-radius: 100px;
-  }
-  .save-pill.saved { color: var(--income); border-color: var(--income); }
-
-  .theme-toggle {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 13px;
-    line-height: 1;
-    background: var(--surface);
-    border: 1px solid var(--rule);
-    border-radius: 100px;
-    padding: 5px 10px;
-    color: var(--ink);
-    cursor: pointer;
-  }
-  .theme-toggle:hover { border-color: var(--ink); }
-
-  .clock-chip {
-    font-family: 'IBM Plex Mono', monospace;
-    text-align: right;
-    line-height: 1.5;
-  }
-  @media (max-width: 640px) { .clock-chip { text-align: left; } }
-  .clock-date {
-    font-size: 12px;
-    color: var(--ink-soft);
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-  }
-  .clock-time {
-    font-size: 18px;
-    font-weight: 600;
-    font-variant-numeric: tabular-nums;
-    color: var(--ink);
-  }
-
-  .weather-chip {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 12px;
-    color: var(--ink-soft);
-    background: var(--surface);
-    border: 1px solid var(--rule);
-    border-radius: 100px;
-    padding: 5px 12px 5px 10px;
-  }
-  .weather-chip .weather-icon { font-size: 16px; line-height: 1; }
-  .weather-chip .weather-temp { font-weight: 600; color: var(--ink); font-size: 13px; }
-  .weather-chip button {
-    border: none;
-    background: transparent;
-    color: var(--ink-soft);
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 11px;
-    text-decoration: underline;
-    cursor: pointer;
-    padding: 0;
-  }
-
-  .strip {
-    display: flex;
-    align-items: stretch;
-    gap: 10px;
-    background: var(--surface);
-    border: 1px solid var(--rule);
-    border-radius: 6px;
-    padding: 18px clamp(10px, 2.5vw, 22px);
-    margin-bottom: 6px;
-    position: relative;
-    overflow: hidden;
-    flex-wrap: wrap;
-  }
-  .strip::before {
-    content: "";
-    position: absolute;
-    top: 0; left: 0; right: 0;
-    height: 6px;
-    background-image: radial-gradient(circle at 6px 0, transparent 5px, var(--paper) 6px);
-    background-size: 12px 6px;
-    background-repeat: repeat-x;
-  }
-  .strip-item { display: flex; flex-direction: column; gap: 4px; min-width: 108px; }
-  .strip-final { padding-left: 6px; }
-  .strip-label {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: var(--ink-soft);
-  }
-  .strip-value {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: clamp(18px, 2.6vw, 24px);
-    font-weight: 600;
-    font-variant-numeric: tabular-nums;
-  }
-  .strip-value.income { color: var(--income); }
-  .strip-value.expense { color: var(--expense); }
-  .strip-value.savings { color: var(--savings); }
-  .strip-value.negative { color: var(--expense-deep); }
-  .strip-op {
-    align-self: center;
-    font-family: 'IBM Plex Mono', monospace;
-    color: var(--ink-soft);
-    font-size: 20px;
-  }
-
-  .bar {
-    display: flex;
-    height: 10px;
-    border-radius: 100px;
-    overflow: hidden;
-    background: var(--paper-alt);
-    margin: 14px 2px 8px;
-  }
-  .bar-seg { height: 100%; transition: width 0.3s ease; }
-  .bar-legend {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 14px;
-    margin-bottom: 30px;
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 11px;
-    color: var(--ink-soft);
-  }
-  .legend-item { display: flex; align-items: center; gap: 6px; }
-  .legend-item i { width: 8px; height: 8px; border-radius: 2px; display: inline-block; }
-
-  .grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 22px;
-    margin-bottom: 22px;
-  }
-  @media (max-width: 760px) {
-    .grid { grid-template-columns: 1fr; }
-  }
-
-  .ledger-panel {
-    background: var(--surface);
-    border: 1px solid var(--rule);
-    border-radius: 6px;
-    padding: 20px 20px 16px;
-    display: flex;
-    flex-direction: column;
-    margin-bottom: 22px;
-  }
-  .wide-panel { margin-bottom: 22px; }
-  .grid .ledger-panel { margin-bottom: 0; }
-
-  .panel-head h2 {
-    font-family: 'Source Serif 4', serif;
-    font-size: 19px;
-    margin: 0 0 4px;
-  }
-  .panel-sub { margin: 0 0 16px; font-size: 13px; color: var(--ink-soft); line-height: 1.45; }
-  .panel-sub.small { margin-top: -8px; }
-  .sub-heading {
-    font-family: 'Source Serif 4', serif;
-    font-size: 16px;
-    margin: 18px 0 2px;
-    border-top: 1px solid var(--rule);
-    padding-top: 16px;
-  }
-
-  .balance-inputs {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 18px;
-    margin-bottom: 8px;
-  }
-  @media (max-width: 640px) {
-    .balance-inputs { grid-template-columns: 1fr; }
-  }
-  .balance-block {
-    background: var(--paper);
-    border: 1px solid var(--rule);
-    border-radius: 6px;
-    padding: 14px 16px;
-  }
-  .field-label {
-    display: block;
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: var(--ink-soft);
-    margin-bottom: 6px;
-  }
-  .balance-current {
-    margin-top: 10px;
-    padding-top: 10px;
-    border-top: 1px solid var(--rule);
-  }
-  .transfer-note {
-    display: block;
-    margin-top: 6px;
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 11px;
-    color: var(--savings);
-  }
-  .shortfall-note {
-    display: block;
-    margin-top: 6px;
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 11px;
-    font-weight: 600;
-    color: var(--expense-deep);
-  }
-
-  .table-wrap { display: flex; flex-direction: column; }
-.row {
-  display: grid;
-  grid-template-columns: 20px 1fr 108px 26px;
-  align-items: center;
-  gap: 8px;
-  padding: 7px 0;
-  border-bottom: 1px solid var(--rule);
-}
-  .row.dragging {
-    opacity: 0.4;
-  }
-  .row.drag-over-target {
-    box-shadow: inset 0 2px 0 var(--ink);
-  }
-.row.with-type { 
-  grid-template-columns: 20px 1fr 140px 108px 26px;
-}
-.row.extra-row { 
-  grid-template-columns: 20px 20px 1fr 110px 130px 108px 26px;
-}
-.row.annual-row {
-  grid-template-columns: 20px 20px 1fr 128px 108px 84px 26px;
-}
-.row.monthly-row {
-  grid-template-columns: 20px 20px 1fr 140px 92px 108px 84px 26px;
-}
-
-.drag-handle {
-  cursor: grab;
-  color: var(--rule);
-  font-size: 14px;
-  font-weight: bold;
-  user-select: none;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  letter-spacing: -1px;
-}
-.drag-handle:active {
-  cursor: grabbing;
-  color: var(--ink-soft);
-}
-  @media (max-width: 640px) {
-    .row.extra-row { grid-template-columns: 1fr; row-gap: 6px; padding-bottom: 12px; }
-    .row.annual-row { grid-template-columns: 1fr; row-gap: 6px; padding-bottom: 12px; }
-    .row.monthly-row { grid-template-columns: 1fr; row-gap: 6px; padding-bottom: 12px; }
-  }
-  .row-head {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: var(--ink-soft);
-    border-bottom: 1px solid var(--ink-soft);
-    padding-bottom: 8px;
-  }
-  .row-head .num { text-align: right; }
-  .empty-row { padding: 14px 0; font-size: 13px; color: var(--ink-soft); font-style: italic; }
-
-  .cell-input {
-    font-family: 'Inter', sans-serif;
-    font-size: 14px;
-    color: var(--ink);
-    background: transparent;
-    border: none;
-    border-bottom: 1px solid transparent;
-    padding: 4px 2px;
-    width: 100%;
-    outline: none;
-  }
-  .cell-input:focus { border-bottom-color: var(--ink-soft); }
-  .num-input {
-    font-family: 'IBM Plex Mono', monospace;
-    text-align: right;
-    font-variant-numeric: tabular-nums;
-  }
-  .amount-field { display: flex; align-items: center; gap: 2px; justify-content: flex-end; }
-  .amount-field .dollar { font-family: 'IBM Plex Mono', monospace; color: var(--ink-soft); font-size: 13px; }
-  .amount-field.big { justify-content: flex-start; }
-
-  .mini-select {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 11px;
-    color: var(--ink);
-    background: var(--surface);
-    border: 1px solid var(--rule);
-    border-radius: 100px;
-    padding: 5px 8px;
-    outline: none;
-    width: 100%;
-  }
-
-  .type-toggle {
-    display: flex;
-    border: 1px solid var(--rule);
-    border-radius: 100px;
-    overflow: hidden;
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 11px;
-  }
-  .type-toggle button {
-    flex: 1;
-    border: none;
-    background: transparent;
-    color: var(--ink-soft);
-    padding: 5px 8px;
-    cursor: pointer;
-  }
-  .type-toggle button.active { background: var(--ink); color: var(--paper); }
-  .type-toggle.wide { max-width: 260px; margin-bottom: 12px; font-size: 12px; }
-  .type-toggle.wide button { padding: 8px 10px; }
-
-  .row-remove {
-    border: none;
-    background: transparent;
-    color: var(--ink-soft);
-    font-size: 18px;
-    cursor: pointer;
-    line-height: 1;
-    padding: 2px 4px;
-  }
-  .row-remove:hover { color: var(--expense); }
-
-  .row-select {
-    width: 15px;
-    height: 15px;
-    cursor: pointer;
-    accent-color: var(--ink);
-  }
-  .row-select:disabled { cursor: not-allowed; opacity: 0.4; }
-
-  .row.paid {
-    background: var(--paper-alt);
-    opacity: 0.6;
-  }
-  .row.paid .num-input,
-  .row.paid .amount-field .dollar {
-    text-decoration: line-through;
-  }
-  .paid-tag {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 10px;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: var(--ink-soft);
-  }
-
-  .settle-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex-wrap: wrap;
-    margin-top: 10px;
-  }
-
-  .row.dimmed {
-    background: var(--paper-alt);
-    opacity: 0.55;
-  }
-  .date-cell {
-    display: flex;
-    flex-direction: column;
-    gap: 3px;
-  }
-  .date-input {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 12px;
-  }
-  .due-badge {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 10px;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    color: var(--ink-soft);
-  }
-  .due-badge.soon { color: var(--savings); font-weight: 600; }
-  .due-badge.overdue { color: var(--expense-deep); font-weight: 600; }
-  .due-badge.estimate { font-style: italic; }
-
-  .due-day-cell { display: flex; flex-direction: column; gap: 3px; align-items: center; }
-  .due-day-field { display: flex; align-items: baseline; gap: 3px; justify-content: center; }
-  .due-day-field .due-day-prefix { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--ink-soft); }
-  .due-day-input {
-    width: 40px;
-    text-align: center;
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 13px;
-  }
-
-  .upcoming-bills { display: flex; flex-direction: column; gap: 0; }
-  .upcoming-bill-row {
-    display: grid;
-    grid-template-columns: 1fr auto auto;
-    align-items: center;
-    gap: 10px;
-    padding: 8px 0;
-    border-bottom: 1px solid var(--rule);
-    font-size: 13px;
-  }
-  .upcoming-bill-row:last-child { border-bottom: none; }
-  .upcoming-bill-name { display: flex; flex-direction: column; }
-  .upcoming-bill-tag {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 10px;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--ink-soft);
-  }
-  .upcoming-bill-amount {
-    font-family: 'IBM Plex Mono', monospace;
-    font-variant-numeric: tabular-nums;
-    color: var(--ink-soft);
-  }
-
-  .add-btn.small {
-    padding: 4px 8px;
-    font-size: 10px;
-    white-space: nowrap;
-  }
-
-  .panel-foot {
-    margin-top: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    gap: 8px;
-  }
-  .add-btn {
-      border: 1px dashed var(--ink-soft);
-      background: transparent;
-      color: var(--ink-soft);
-      border-radius: 100px;
-      padding: 6px 14px;
-      font-size: 12px;
-      font-family: 'Inter', sans-serif;
-      cursor: pointer;
-    }
-    .add-btn:hover { border-color: var(--ink); color: var(--ink); }
-    .add-btn:disabled {
-      opacity: 0.45;
-      cursor: not-allowed;
-  }
-
-  .add-btn:disabled:hover {
-      border-color: var(--ink-soft);
-      color: var(--ink-soft);
-  }
-
-  .add-btn.danger {
-      border-style: solid;
-      border-color: var(--expense-soft);
-      color: var(--expense);
-  }
-
-  .add-btn.danger:hover {
-      border-color: var(--expense);
-  }
-  .foot-note {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 12px;
-    color: var(--ink-soft);
-    font-variant-numeric: tabular-nums;
-  }
-
-  .savings-panel .amount-field.big .num-input { font-size: 22px; max-width: 120px; }
-  .savings-controls { display: flex; flex-direction: column; gap: 4px; }
-  .percent { font-family: 'IBM Plex Mono', monospace; color: var(--ink-soft); font-size: 18px; }
-
-  .balance-block .amount-field.big .num-input { font-size: 20px; max-width: 160px; }
-
-  .savings-summary, .balance-current {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-  }
-  .savings-summary { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--rule); }
-  .summary-label {
-    display: block;
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: var(--ink-soft);
-  }
-  .summary-value {
-    display: block;
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 22px;
-    font-weight: 600;
-    font-variant-numeric: tabular-nums;
-  }
-  .summary-value.income { color: var(--income); }
-  .summary-value.savings { color: var(--savings); }
-  .summary-value.negative { color: var(--expense-deep); }
-
-  .warning {
-    margin-top: 14px;
-    font-size: 13px;
-    color: var(--expense-deep);
-    background: #F3E4E8;
-    border: 1px solid var(--expense-soft);
-    border-radius: 6px;
-    padding: 10px 12px;
-    line-height: 1.4;
-  }
-
-  .ledger-footer {
-    margin-top: 8px;
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 11px;
-    color: var(--ink-soft);
-    text-align: center;
-  }
-
-  input[type=number]::-webkit-inner-spin-button,
-  input[type=number]::-webkit-outer-spin-button {
-    opacity: 0.4;
-  }
-
-</style>
+<link rel="stylesheet" href="styles.css" />
 </head>
 <body>
 <div id="root"></div>
@@ -707,6 +55,7 @@ const defaultData = () => ({
     { id: genId(), name: "Tax refund", account: "savings", direction: "add", amount: 800, paid: true },
     { id: genId(), name: "Vet visit (pending)", account: "checking", direction: "subtract", amount: 120, paid: false },
   ],
+  calculatorItems: [],
   projections: {
     surpriseBuffer: 300,
     savingsGoal: 50000,
@@ -1141,6 +490,97 @@ function ExtraItemsTable({
           </div>
       </div>
     </div>
+  );
+}
+
+function ItemCalculatorTable({ items, onChange, onAdd, onRemove, onDeleteSelected, onReorder }) {
+  const { draggingId, overId, startDrag, dragOverRow, dropOnRow, endDrag } = useSortableList(onReorder);
+  const [selectedIds, setSelectedIds] = useState(() => new Set());
+  const nameInputRefs = useRef({});
+  const prevCountRef = useRef(items.length);
+
+  useEffect(() => {
+    if (items.length > prevCountRef.current) {
+      const lastItem = items[items.length - 1];
+      nameInputRefs.current[lastItem.id]?.focus();
+    }
+    prevCountRef.current = items.length;
+    setSelectedIds((prev) => new Set([...prev].filter((id) => items.some((item) => item.id === id))));
+  }, [items]);
+
+  const toggleSelect = (id) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+  const allSelected = items.length > 0 && items.every((item) => selectedIds.has(item.id));
+  const toggleSelectAll = () => setSelectedIds(allSelected ? new Set() : new Set(items.map((item) => item.id)));
+  const removeOne = (id) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
+    onRemove(id);
+  };
+  const deleteSelected = () => {
+    if (!selectedIds.size) return;
+    onDeleteSelected([...selectedIds]);
+    setSelectedIds(new Set());
+  };
+  const total = items.reduce((sum, item) => {
+    const amount = parseFloat(item.amount) || 0;
+    return sum + (item.direction === "add" ? amount : -amount);
+  }, 0);
+
+  return (
+    <section className="ledger-panel wide-panel">
+      <div className="panel-head">
+        <h2>Item calculator</h2>
+        <p className="panel-sub">Add a quick list of costs and credits without changing any real balances. Use + or − to include each item as an addition or subtraction.</p>
+      </div>
+      <div className="table-wrap calculator-table">
+        <div className="row calculator-row row-head">
+          <span />
+          <input type="checkbox" className="row-select" checked={allSelected} onChange={toggleSelectAll} title="Select all" disabled={!items.length} />
+          <span>Item</span>
+          <span>Operation</span>
+          <span className="num">Amount</span>
+          <span className="row-action" />
+        </div>
+        {!items.length && <div className="empty-row">No calculator items yet — add an item to start totaling.</div>}
+        {items.map((item) => (
+          <div
+            key={item.id}
+            className={`row calculator-row ${draggingId === item.id ? "dragging" : ""} ${overId === item.id && draggingId && draggingId !== item.id ? "drag-over-target" : ""}`}
+            onDragOver={(e) => { if (draggingId) { e.preventDefault(); dragOverRow(item.id); } }}
+            onDrop={(e) => { if (draggingId) { e.preventDefault(); dropOnRow(item.id); } }}
+          >
+            <div className="drag-handle" title="Drag to reorder" draggable onDragStart={(e) => { e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", item.id); startDrag(item.id); }} onDragEnd={endDrag}>⋮⋮</div>
+            <input type="checkbox" className="row-select" checked={selectedIds.has(item.id)} onChange={() => toggleSelect(item.id)} aria-label={`Select ${item.name || "item"}`} />
+            <input className="cell-input name-input" type="text" value={item.name} placeholder="Item name" ref={(el) => { if (el) nameInputRefs.current[item.id] = el; else delete nameInputRefs.current[item.id]; }} onChange={(e) => onChange(item.id, { name: e.target.value })} />
+            <select className="mini-select" value={item.direction} onChange={(e) => onChange(item.id, { direction: e.target.value })} aria-label={`Operation for ${item.name || "item"}`}>
+              <option value="subtract">Subtract (−)</option>
+              <option value="add">Add (+)</option>
+            </select>
+            <div className="amount-field"><span className="dollar">$</span><input className="cell-input num-input" type="number" step="0.01" min="0" inputMode="decimal" value={item.amount} onChange={(e) => onChange(item.id, { amount: e.target.value === "" ? "" : parseFloat(e.target.value) })} /></div>
+            <button className="row-remove" onClick={() => removeOne(item.id)} aria-label={`Remove ${item.name || "item"}`}>×</button>
+          </div>
+        ))}
+      </div>
+      <div className="calculator-total">
+        <span className="summary-label">Calculator total</span>
+        <span className={`summary-value ${total < 0 ? "negative" : "income"}`}>{fmt(total)}</span>
+      </div>
+      <div className="panel-foot">
+        <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+          <button className="add-btn" onClick={onAdd}>+ Add item</button>
+          <button className="add-btn danger" onClick={deleteSelected} disabled={!selectedIds.size}>Delete selected{selectedIds.size ? ` (${selectedIds.size})` : ""}</button>
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -2190,6 +1630,14 @@ function App() {
             paid: it.paid === undefined ? true : it.paid,
           }));
         }
+        // Migration: keep the stand-alone calculator list separate from any
+        // balance-affecting records, including saves made before it existed.
+        merged.calculatorItems = Array.isArray(parsed.calculatorItems)
+          ? parsed.calculatorItems.map((it) => ({
+              ...it,
+              direction: it.direction === "add" ? "add" : "subtract",
+            }))
+          : [];
         // Migration: monthly items saved before dim/move-tracking existed.
         if (Array.isArray(parsed.monthlyItems)) {
           merged.monthlyItems = parsed.monthlyItems.map((it) => ({
@@ -2272,6 +1720,10 @@ function App() {
 
   const removeItem = (listKey) => (id) => {
     setData((d) => ({ ...d, [listKey]: d[listKey].filter((it) => it.id !== id) }));
+  };
+  const removeSelectedItems = (listKey) => (ids) => {
+    const idSet = new Set(ids);
+    setData((d) => ({ ...d, [listKey]: d[listKey].filter((it) => !idSet.has(it.id)) }));
   };
   const removeExtraItem = (id) => {
     setData((d) => {
@@ -2829,6 +2281,15 @@ const undoSettleChange = () => {
           onReorder={reorderItems("extraItems")}
         />
       </section>
+
+      <ItemCalculatorTable
+        items={data.calculatorItems}
+        onChange={updateItem("calculatorItems")}
+        onAdd={addItem("calculatorItems", { name: "", direction: "subtract", amount: 0 })}
+        onRemove={removeItem("calculatorItems")}
+        onDeleteSelected={removeSelectedItems("calculatorItems")}
+        onReorder={reorderItems("calculatorItems")}
+      />
 
       <div className="grid">
         <MonthlyItemsTable
