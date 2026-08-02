@@ -352,7 +352,7 @@
   grid-template-columns: 20px 1fr 140px 108px 26px;
 }
 .row.extra-row { 
-  grid-template-columns: 20px 20px 1fr 110px 130px 108px 26px;
+  grid-template-columns: 20px 20px minmax(120px, 1fr) 100px 118px 126px 88px 26px;
 }
 .row.calculator-row {
   grid-template-columns: 20px 20px 1fr 130px 108px 26px;

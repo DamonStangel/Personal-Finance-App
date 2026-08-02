@@ -336,6 +336,7 @@ function ExtraItemsTable({
         <span>Item</span>
         <span>Account</span>
         <span>Direction</span>
+        <span>Due date</span>
         <span className="num">Amount</span>
         <span className="row-action" />
       </div>
@@ -419,6 +420,15 @@ function ExtraItemsTable({
             <option value="add">Received (+)</option>
           </select>
 
+          <input
+            className="cell-input date-input"
+            type="date"
+            value={item.dueDate || toDateInputValue(nextMonthlyOccurrence(item.dueDay))}
+            disabled={item.paid}
+            onChange={(e) => onChange(item.id, { dueDate: e.target.value })}
+            aria-label={`Due date for ${item.name || "item"}`}
+          />
+
           <div className="amount-field">
             <span className="dollar">$</span>
             <input
@@ -493,7 +503,7 @@ function ExtraItemsTable({
   );
 }
 
-function ItemCalculatorTable({ items, onChange, onAdd, onRemove, onDeleteSelected, onReorder }) {
+function ItemCalculatorTable({ items, onChange, onAdd, onRemove, onDeleteSelected, onDimSelected, onUndimSelected, onReorder }) {
   const { draggingId, overId, startDrag, dragOverRow, dropOnRow, endDrag } = useSortableList(onReorder);
   const [selectedIds, setSelectedIds] = useState(() => new Set());
   const nameInputRefs = useRef({});
@@ -530,7 +540,18 @@ function ItemCalculatorTable({ items, onChange, onAdd, onRemove, onDeleteSelecte
     onDeleteSelected([...selectedIds]);
     setSelectedIds(new Set());
   };
+  const dimSelected = () => {
+    if (!selectedIds.size) return;
+    onDimSelected([...selectedIds]);
+    setSelectedIds(new Set());
+  };
+  const undimSelected = () => {
+    if (!selectedIds.size) return;
+    onUndimSelected([...selectedIds]);
+    setSelectedIds(new Set());
+  };
   const total = items.reduce((sum, item) => {
+    if (item.dimmed) return sum;
     const amount = parseFloat(item.amount) || 0;
     return sum + (item.direction === "add" ? amount : -amount);
   }, 0);
@@ -554,7 +575,7 @@ function ItemCalculatorTable({ items, onChange, onAdd, onRemove, onDeleteSelecte
         {items.map((item) => (
           <div
             key={item.id}
-            className={`row calculator-row ${draggingId === item.id ? "dragging" : ""} ${overId === item.id && draggingId && draggingId !== item.id ? "drag-over-target" : ""}`}
+            className={`row calculator-row ${draggingId === item.id ? "dragging" : ""} ${overId === item.id && draggingId && draggingId !== item.id ? "drag-over-target" : ""} ${item.dimmed ? "dimmed" : ""}`}
             onDragOver={(e) => { if (draggingId) { e.preventDefault(); dragOverRow(item.id); } }}
             onDrop={(e) => { if (draggingId) { e.preventDefault(); dropOnRow(item.id); } }}
           >
@@ -571,12 +592,14 @@ function ItemCalculatorTable({ items, onChange, onAdd, onRemove, onDeleteSelecte
         ))}
       </div>
       <div className="calculator-total">
-        <span className="summary-label">Calculator total</span>
+        <span className="summary-label">Calculator total (excluding dimmed items)</span>
         <span className={`summary-value ${total < 0 ? "negative" : "income"}`}>{fmt(total)}</span>
       </div>
       <div className="panel-foot">
         <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
           <button className="add-btn" onClick={onAdd}>+ Add item</button>
+          <button className="add-btn" onClick={dimSelected} disabled={!selectedIds.size}>Dim selected{selectedIds.size ? ` (${selectedIds.size})` : ""}</button>
+          <button className="add-btn" onClick={undimSelected} disabled={!selectedIds.size}>Undim selected</button>
           <button className="add-btn danger" onClick={deleteSelected} disabled={!selectedIds.size}>Delete selected{selectedIds.size ? ` (${selectedIds.size})` : ""}</button>
         </div>
       </div>
@@ -610,6 +633,14 @@ function nextMonthlyOccurrence(day) {
     candidate = clampToMonth(today.getFullYear(), today.getMonth() + 1);
   }
   return candidate;
+}
+
+function toDateInputValue(date) {
+  if (!date) return "";
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 function daysUntilMonthly(day) {
@@ -1621,21 +1652,13 @@ function App() {
       if (raw) {
         const parsed = JSON.parse(raw);
         const merged = { ...defaultData(), ...parsed, accounts: { ...defaultData().accounts, ...(parsed.accounts || {}) } };
-        // Migration: items saved before the "paid" feature existed have no `paid`
-        // field. Treat those as already applied (paid: true) so previously-entered
-        // real balances don't silently change. Only brand-new items default to pending.
-        if (Array.isArray(parsed.extraItems)) {
-          merged.extraItems = parsed.extraItems.map((it) => ({
-            ...it,
-            paid: it.paid === undefined ? true : it.paid,
-          }));
-        }
         // Migration: keep the stand-alone calculator list separate from any
         // balance-affecting records, including saves made before it existed.
         merged.calculatorItems = Array.isArray(parsed.calculatorItems)
           ? parsed.calculatorItems.map((it) => ({
               ...it,
               direction: it.direction === "add" ? "add" : "subtract",
+              dimmed: it.dimmed === undefined ? false : it.dimmed,
             }))
           : [];
         // Migration: monthly items saved before dim/move-tracking existed.
@@ -1653,6 +1676,28 @@ function App() {
             dueDate: it.dueDate === undefined ? "" : it.dueDate,
             movedThisCycle: it.movedThisCycle === undefined ? false : it.movedThisCycle,
           }));
+        }
+        // Migration: older one-off entries did not retain a source due date.
+        // When a matching bill is currently dimmed/moved, recover its due data
+        // so past Move → entries show the same expected date as their source.
+        if (Array.isArray(parsed.extraItems)) {
+          merged.extraItems = parsed.extraItems.map((it) => {
+            const monthlySource = merged.monthlyItems.find(
+              (bill) => bill.name === it.name && bill.dimmed && bill.dueDay
+            );
+            const annualSource = merged.annualItems.find(
+              (bill) => bill.name === it.name && bill.movedThisCycle && bill.dueDate
+            );
+            const dueDay = it.dueDay || monthlySource?.dueDay || "";
+            return {
+              ...it,
+              paid: it.paid === undefined ? true : it.paid,
+              dueDay,
+              dueDate:
+                it.dueDate ||
+                (dueDay ? toDateInputValue(nextMonthlyOccurrence(dueDay)) : annualSource?.dueDate || ""),
+            };
+          });
         }
         // Migration: fill in any projections fields (surprise buffer, savings
         // goal, milestone periods) missing from data saved before these were
@@ -1724,6 +1769,16 @@ function App() {
   const removeSelectedItems = (listKey) => (ids) => {
     const idSet = new Set(ids);
     setData((d) => ({ ...d, [listKey]: d[listKey].filter((it) => !idSet.has(it.id)) }));
+  };
+  const setCalculatorItemsDimmed = (ids, dimmed) => {
+    if (!ids.length) return;
+    const idSet = new Set(ids);
+    setData((d) => ({
+      ...d,
+      calculatorItems: d.calculatorItems.map((item) =>
+        idSet.has(item.id) ? { ...item, dimmed } : item
+      ),
+    }));
   };
   const removeExtraItem = (id) => {
     setData((d) => {
@@ -1860,6 +1915,7 @@ const moveAnnualItemToOneOff = (id) => {
       direction: "subtract",
       amount: bill.amount,
       paid: false,
+      dueDate: bill.dueDate || "",
     };
     return {
       ...d,
@@ -1915,6 +1971,8 @@ const moveMonthlyItemToOneOff = (id) => {
       direction: "subtract",
       amount: item.amount,
       paid: false,
+      dueDay: item.dueDay || "",
+      dueDate: toDateInputValue(nextMonthlyOccurrence(item.dueDay)),
     };
     return {
       ...d,
@@ -2269,7 +2327,7 @@ const undoSettleChange = () => {
         <ExtraItemsTable
           items={data.extraItems}
           onChange={updateItem("extraItems")}
-          onAdd={addItem("extraItems", { name: "", account: "checking", direction: "subtract", amount: 0, paid: false })}
+          onAdd={addItem("extraItems", { name: "", account: "checking", direction: "subtract", dueDay: "", dueDate: "", amount: 0, paid: false })}
           onRemove={removeExtraItem}
           onClearAll={clearExtraItems}
           onUndoClear={undoExtraItemsChange}
@@ -2285,9 +2343,11 @@ const undoSettleChange = () => {
       <ItemCalculatorTable
         items={data.calculatorItems}
         onChange={updateItem("calculatorItems")}
-        onAdd={addItem("calculatorItems", { name: "", direction: "subtract", amount: 0 })}
+        onAdd={addItem("calculatorItems", { name: "", direction: "subtract", amount: 0, dimmed: false })}
         onRemove={removeItem("calculatorItems")}
         onDeleteSelected={removeSelectedItems("calculatorItems")}
+        onDimSelected={(ids) => setCalculatorItemsDimmed(ids, true)}
+        onUndimSelected={(ids) => setCalculatorItemsDimmed(ids, false)}
         onReorder={reorderItems("calculatorItems")}
       />
 
