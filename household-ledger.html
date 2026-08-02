@@ -56,6 +56,7 @@ const defaultData = () => ({
     { id: genId(), name: "Vet visit (pending)", account: "checking", direction: "subtract", amount: 120, paid: false },
   ],
   calculatorItems: [],
+  monthlySpent: 0,
   projections: {
     surpriseBuffer: 300,
     savingsGoal: 50000,
@@ -71,13 +72,19 @@ const fmt = (n) =>
     maximumFractionDigits: 2,
   });
 
-const sum = (arr) => arr.reduce((acc, it) => acc + (parseFloat(it.amount) || 0), 0);
+const money = (value) => {
+  const amount = parseFloat(value);
+  return Number.isFinite(amount) ? Math.round((amount + Number.EPSILON) * 100) / 100 : 0;
+};
+const moneyText = (value) => (value === "" ? "" : money(value).toFixed(2));
+
+const sum = (arr) => money(arr.reduce((acc, it) => acc + money(it.amount), 0));
 
 const signedTotal = (items, account) =>
   items
     .filter((i) => i.account === account)
     .reduce((acc, i) => {
-      const amt = parseFloat(i.amount) || 0;
+      const amt = money(i.amount);
       return acc + (i.direction === "add" ? amt : -amt);
     }, 0);
 
@@ -232,8 +239,9 @@ function LineItemTable({
                 inputMode="decimal"
                 value={item.amount}
                 onChange={(e) =>
-                  onChange(item.id, { amount: e.target.value === "" ? "" : parseFloat(e.target.value) })
+                  onChange(item.id, { amount: e.target.value === "" ? "" : money(e.target.value) })
                 }
+                onBlur={(e) => onChange(item.id, { amount: moneyText(e.target.value) })}
               />
             </div>
 
@@ -440,8 +448,9 @@ function ExtraItemsTable({
               value={item.amount}
               disabled={item.paid}
               onChange={(e) =>
-                onChange(item.id, { amount: e.target.value === "" ? "" : parseFloat(e.target.value) })
+                onChange(item.id, { amount: e.target.value === "" ? "" : money(e.target.value) })
               }
+              onBlur={(e) => onChange(item.id, { amount: moneyText(e.target.value) })}
             />
           </div>
 
@@ -586,7 +595,7 @@ function ItemCalculatorTable({ items, onChange, onAdd, onRemove, onDeleteSelecte
               <option value="subtract">Subtract (−)</option>
               <option value="add">Add (+)</option>
             </select>
-            <div className="amount-field"><span className="dollar">$</span><input className="cell-input num-input" type="number" step="0.01" min="0" inputMode="decimal" value={item.amount} onChange={(e) => onChange(item.id, { amount: e.target.value === "" ? "" : parseFloat(e.target.value) })} /></div>
+            <div className="amount-field"><span className="dollar">$</span><input className="cell-input num-input" type="number" step="0.01" min="0" inputMode="decimal" value={item.amount} onChange={(e) => onChange(item.id, { amount: e.target.value === "" ? "" : money(e.target.value) })} onBlur={(e) => onChange(item.id, { amount: moneyText(e.target.value) })} /></div>
             <button className="row-remove" onClick={() => removeOne(item.id)} aria-label={`Remove ${item.name || "item"}`}>×</button>
           </div>
         ))}
@@ -835,8 +844,9 @@ function AnnualBillsTable({
                   inputMode="decimal"
                   value={item.amount}
                   onChange={(e) =>
-                    onChange(item.id, { amount: e.target.value === "" ? "" : parseFloat(e.target.value) })
+                    onChange(item.id, { amount: e.target.value === "" ? "" : money(e.target.value) })
                   }
+                  onBlur={(e) => onChange(item.id, { amount: moneyText(e.target.value) })}
                 />
               </div>
 
@@ -1096,8 +1106,9 @@ function MonthlyItemsTable({
                 inputMode="decimal"
                 value={item.amount}
                 onChange={(e) =>
-                  onChange(item.id, { amount: e.target.value === "" ? "" : parseFloat(e.target.value) })
+                  onChange(item.id, { amount: e.target.value === "" ? "" : money(e.target.value) })
                 }
+                onBlur={(e) => onChange(item.id, { amount: moneyText(e.target.value) })}
               />
             </div>
 
@@ -1426,7 +1437,7 @@ function ProjectionsPanel({ income, monthlyExpenses, currentSavings, projections
                   min="0"
                   step="0.01"
                   value={surpriseBuffer}
-                  onChange={(e) => setSurpriseBuffer(e.target.value === "" ? 0 : parseFloat(e.target.value))}
+                  onChange={(e) => setSurpriseBuffer(e.target.value === "" ? 0 : money(e.target.value))}
                 />
               </div>
           </div>
@@ -1441,7 +1452,7 @@ function ProjectionsPanel({ income, monthlyExpenses, currentSavings, projections
                   min="1"
                   step="1000"
                   value={savingsGoal}
-                  onChange={(e) => setSavingsGoal(e.target.value === "" ? 1 : parseFloat(e.target.value))}
+                  onChange={(e) => setSavingsGoal(e.target.value === "" ? 1 : money(e.target.value))}
                 />
               </div>
           </div>
@@ -1573,6 +1584,7 @@ function App() {
   const [undoExtraItems, setUndoExtraItems] = useState(null);
   const [undoPaidExtraItems, setUndoPaidExtraItems] = useState(null);
   const [undoSettle, setUndoSettle] = useState(null);
+  const [undoMonthlySpent, setUndoMonthlySpent] = useState(null);
 
   const [pageTitle, setPageTitle] = useState(() => {
     try {
@@ -1652,6 +1664,7 @@ function App() {
       if (raw) {
         const parsed = JSON.parse(raw);
         const merged = { ...defaultData(), ...parsed, accounts: { ...defaultData().accounts, ...(parsed.accounts || {}) } };
+        merged.monthlySpent = parseFloat(parsed.monthlySpent) || 0;
         // Migration: keep the stand-alone calculator list separate from any
         // balance-affecting records, including saves made before it existed.
         merged.calculatorItems = Array.isArray(parsed.calculatorItems)
@@ -1699,6 +1712,22 @@ function App() {
             };
           });
         }
+        // Normalize older saves too, so previously-entered long decimals are
+        // shown and persisted as currency with at most two decimal places.
+        ["monthlyItems", "annualItems", "incomeItems", "extraItems", "calculatorItems"].forEach((listKey) => {
+          merged[listKey] = (merged[listKey] || []).map((item) => ({ ...item, amount: money(item.amount) }));
+        });
+        merged.accounts = {
+          checking: money(merged.accounts.checking),
+          savings: money(merged.accounts.savings),
+        };
+        merged.monthlySpent = money(merged.monthlySpent);
+        merged.savingsValue = money(merged.savingsValue);
+        merged.projections = {
+          ...merged.projections,
+          surpriseBuffer: money(merged.projections.surpriseBuffer),
+          savingsGoal: money(merged.projections.savingsGoal),
+        };
         // Migration: fill in any projections fields (surprise buffer, savings
         // goal, milestone periods) missing from data saved before these were
         // persisted, so old saves don't crash on a missing field.
@@ -1824,9 +1853,11 @@ const markExtraItemsPaid = (ids) => {
     setUndoPaidExtraItems({
       accounts: d.accounts,
       extraItems: d.extraItems,
+      monthlySpent: d.monthlySpent,
     });
 
     const accounts = { ...d.accounts };
+    let monthlySpent = parseFloat(d.monthlySpent) || 0;
 
     const extraItems = d.extraItems.map((item) => {
       if (!idSet.has(item.id) || item.paid) return item;
@@ -1834,8 +1865,8 @@ const markExtraItemsPaid = (ids) => {
       const amount = parseFloat(item.amount) || 0;
       const delta = item.direction === "add" ? amount : -amount;
 
-      accounts[item.account] =
-        (parseFloat(accounts[item.account]) || 0) + delta;
+      accounts[item.account] = money((parseFloat(accounts[item.account]) || 0) + delta);
+      if (item.direction === "subtract") monthlySpent = money(monthlySpent + amount);
 
       return {
         ...item,
@@ -1847,6 +1878,7 @@ const markExtraItemsPaid = (ids) => {
       ...d,
       accounts,
       extraItems,
+      monthlySpent,
     };
   });
 };
@@ -1860,9 +1892,11 @@ const markExtraItemsUnpaid = (ids) => {
     setUndoPaidExtraItems({
       accounts: d.accounts,
       extraItems: d.extraItems,
+      monthlySpent: d.monthlySpent,
     });
 
     const accounts = { ...d.accounts };
+    let monthlySpent = parseFloat(d.monthlySpent) || 0;
 
     const extraItems = d.extraItems.map((item) => {
       if (!idSet.has(item.id) || !item.paid) return item;
@@ -1872,8 +1906,8 @@ const markExtraItemsUnpaid = (ids) => {
       // Reverse whatever Paid previously did
       const delta = item.direction === "add" ? -amount : amount;
 
-      accounts[item.account] =
-        (parseFloat(accounts[item.account]) || 0) + delta;
+      accounts[item.account] = money((parseFloat(accounts[item.account]) || 0) + delta);
+      if (item.direction === "subtract") monthlySpent = money(Math.max(0, monthlySpent - amount));
 
       return {
         ...item,
@@ -1885,6 +1919,7 @@ const markExtraItemsUnpaid = (ids) => {
       ...d,
       accounts,
       extraItems,
+      monthlySpent,
     };
   });
 };
@@ -1896,6 +1931,7 @@ const undoMarkPaid = () => {
     ...d,
     accounts: undoPaidExtraItems.accounts,
     extraItems: undoPaidExtraItems.extraItems,
+    monthlySpent: undoPaidExtraItems.monthlySpent,
   }));
 
   setUndoPaidExtraItems(null);
@@ -2007,16 +2043,14 @@ const dimMonthlyItems = (ids) => {
   }));
 };
 
-// Sweeps whatever is currently sitting in checking (after paid one-off items
-// and any automatic overdraft transfer) into savings, resets checking to $0,
-// and archives the paid items whose effects are now baked into the balances.
-const settleCheckingToSavings = () => {
+// Commits the displayed running balances: cover a negative checking balance
+// from savings when possible, sweep a positive checking balance into savings,
+// and reset checking to $0. Paid items remain in the list for manual clearing.
+const confirmRunningBalances = () => {
   setData((d) => {
     const paidItems = d.extraItems.filter((i) => i.paid);
-    const checkingAdj = signedTotal(paidItems, "checking");
-    const savingsAdj = signedTotal(paidItems, "savings");
-    const baseChecking = (parseFloat(d.accounts.checking) || 0) + checkingAdj;
-    const baseSavings = (parseFloat(d.accounts.savings) || 0) + savingsAdj;
+    const baseChecking = parseFloat(d.accounts.checking) || 0;
+    const baseSavings = parseFloat(d.accounts.savings) || 0;
 
     let transfer = 0;
     if (baseChecking < 0) {
@@ -2025,17 +2059,18 @@ const settleCheckingToSavings = () => {
     const currentChecking = baseChecking + transfer;
     const currentSavings = baseSavings - transfer;
 
-    if (currentChecking <= 0) return d;
+    if (currentChecking === 0 && paidItems.length === 0) return d;
 
     setUndoSettle({ accounts: d.accounts, extraItems: d.extraItems });
+    setUndoPaidExtraItems(null);
 
     return {
       ...d,
       accounts: {
         checking: 0,
-        savings: currentSavings + currentChecking,
+        savings: money(currentSavings + Math.max(currentChecking, 0)),
       },
-      extraItems: d.extraItems.filter((i) => !i.paid),
+      extraItems: d.extraItems,
     };
   });
 };
@@ -2044,6 +2079,19 @@ const undoSettleChange = () => {
   if (!undoSettle) return;
   setData((d) => ({ ...d, accounts: undoSettle.accounts, extraItems: undoSettle.extraItems }));
   setUndoSettle(null);
+};
+const clearMonthlySpent = () => {
+  setData((d) => {
+    const spent = parseFloat(d.monthlySpent) || 0;
+    if (spent === 0) return d;
+    setUndoMonthlySpent(spent);
+    return { ...d, monthlySpent: 0 };
+  });
+};
+const undoClearMonthlySpent = () => {
+  if (undoMonthlySpent === null) return;
+  setData((d) => ({ ...d, monthlySpent: undoMonthlySpent }));
+  setUndoMonthlySpent(null);
 };
   const updateAccount = (key) => (value) => {
     setData((d) => ({ ...d, accounts: { ...d.accounts, [key]: value } }));
@@ -2250,7 +2298,7 @@ const undoSettleChange = () => {
                 type="number"
                 step="0.01"
                 value={data.accounts.checking}
-                onChange={(e) => updateAccount("checking")(e.target.value === "" ? "" : parseFloat(e.target.value))}
+                onChange={(e) => updateAccount("checking")(e.target.value === "" ? "" : money(e.target.value))}
               />
             </div>
             <div className="balance-current">
@@ -2271,11 +2319,11 @@ const undoSettleChange = () => {
               <div className="settle-row">
                 <button
                   className="add-btn"
-                  onClick={settleCheckingToSavings}
-                  disabled={totals.realChecking <= 0}
-                  title="Move whatever's currently in checking into savings, and reset checking to $0"
+                  onClick={confirmRunningBalances}
+                  disabled={(parseFloat(data.accounts.checking) || 0) === 0 && !data.extraItems.some((item) => item.paid)}
+                  title="Commit the current running balances and set checking to $0; paid items stay in the list"
                 >
-                  Move to savings &amp; clear
+                  Confirm balances &amp; clear
                 </button>
                 {undoSettle && (
                   <button className="add-btn" onClick={undoSettleChange}>
@@ -2295,26 +2343,29 @@ const undoSettleChange = () => {
                 type="number"
                 step="0.01"
                 value={data.accounts.savings}
-                onChange={(e) => updateAccount("savings")(e.target.value === "" ? "" : parseFloat(e.target.value))}
+                onChange={(e) => updateAccount("savings")(e.target.value === "" ? "" : money(e.target.value))}
               />
             </div>
             <div className="balance-current">
-              <span className="summary-label">
-                Current running balance{" "}
-                {(totals.savingsAdj !== 0 || totals.transfer > 0) &&
-                  `(${[
-                    totals.savingsAdj !== 0 ? `${totals.savingsAdj > 0 ? "+" : ""}${fmt(totals.savingsAdj)} from paid items below` : null,
-                    totals.transfer > 0 ? `−${fmt(totals.transfer)} moved to checking` : null,
-                  ]
-                    .filter(Boolean)
-                    .join(", ")})`}
-              </span>
+              <span className="summary-label">Current running balance</span>
               <span className={`summary-value ${totals.realSavings < 0 ? "negative" : "savings"}`}>
                 {fmt(totals.realSavings)}
               </span>
               {totals.transfer > 0 && (
                 <span className="transfer-note">↳ sent {fmt(totals.transfer)} to checking to cover the shortfall</span>
               )}
+              <div className="monthly-spent-summary">
+                <span className="summary-label">Spent this month</span>
+                <span className="summary-value negative">{fmt(data.monthlySpent)}</span>
+                <div className="settle-row">
+                  <button className="add-btn" onClick={clearMonthlySpent} disabled={(parseFloat(data.monthlySpent) || 0) === 0}>
+                    Clear monthly total
+                  </button>
+                  <button className="add-btn" onClick={undoClearMonthlySpent} disabled={undoMonthlySpent === null}>
+                    Undo clear
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -2447,7 +2498,7 @@ const undoSettleChange = () => {
                 onChange={(e) =>
                   setData((d) => ({
                     ...d,
-                    savingsValue: e.target.value === "" ? "" : parseFloat(e.target.value),
+                    savingsValue: e.target.value === "" ? "" : money(e.target.value),
                   }))
                 }
               />

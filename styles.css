@@ -627,6 +627,11 @@
     gap: 10px;
   }
   .savings-summary { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--rule); }
+  .monthly-spent-summary {
+    margin-top: 4px;
+    padding-top: 14px;
+    border-top: 1px solid var(--rule);
+  }
   .summary-label {
     display: block;
     font-family: 'IBM Plex Mono', monospace;
