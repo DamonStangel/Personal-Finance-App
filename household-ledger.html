@@ -262,6 +262,7 @@
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 22px;
+    margin-bottom: 22px;
   }
   @media (max-width: 760px) {
     .grid { grid-template-columns: 1fr; }
@@ -706,6 +707,11 @@ const defaultData = () => ({
     { id: genId(), name: "Tax refund", account: "savings", direction: "add", amount: 800, paid: true },
     { id: genId(), name: "Vet visit (pending)", account: "checking", direction: "subtract", amount: 120, paid: false },
   ],
+  projections: {
+    surpriseBuffer: 300,
+    savingsGoal: 50000,
+    periods: [3, 6, 9, 12],
+  },
 });
 
 const fmt = (n) =>
@@ -1717,12 +1723,52 @@ const WEATHER_CODES = {
   99: ["⛈️", "Thunderstorm"],
 };
 
+const WEATHER_CACHE_KEY = "household-ledger-weather-v1";
+// How long a cached reading (and the location fix that produced it) stays
+// good for. Skipping the geolocation call entirely while the cache is fresh
+// is what keeps the browser from re-showing the location permission prompt
+// on every single page load.
+const WEATHER_CACHE_MS = 30 * 60 * 1000; // 30 minutes
+
+function readWeatherCache() {
+  try {
+    const raw = localStorage.getItem(WEATHER_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed.ts !== "number") return null;
+    return parsed;
+  } catch (err) {
+    return null;
+  }
+}
+
+function writeWeatherCache(entry) {
+  try {
+    localStorage.setItem(WEATHER_CACHE_KEY, JSON.stringify(entry));
+  } catch (err) {
+    console.error("Weather cache save error:", err);
+  }
+}
+
 function WeatherWidget() {
   // idle -> asking -> ok | denied | error
   const [state, setState] = useState("idle");
   const [weather, setWeather] = useState(null);
 
-  const fetchWeather = useCallback(() => {
+  const fetchWeather = useCallback((force) => {
+    // Reuse a recent reading instead of asking the browser for location
+    // again — the permission prompt only shows up when getCurrentPosition
+    // is actually called, so this is what keeps a granted "Allow" from
+    // feeling like it needs to be re-confirmed every reload.
+    if (!force) {
+      const cached = readWeatherCache();
+      if (cached && Date.now() - cached.ts < WEATHER_CACHE_MS) {
+        setWeather({ temp: cached.temp, code: cached.code });
+        setState("ok");
+        return;
+      }
+    }
+
     if (!("geolocation" in navigator)) {
       setState("error");
       return;
@@ -1738,8 +1784,10 @@ function WeatherWidget() {
           const temp = json?.current?.temperature_2m;
           const code = json?.current?.weather_code;
           if (temp === undefined) throw new Error("No temperature in response");
-          setWeather({ temp: Math.round(temp), code });
+          const rounded = Math.round(temp);
+          setWeather({ temp: rounded, code });
           setState("ok");
+          writeWeatherCache({ temp: rounded, code, lat: latitude, lon: longitude, ts: Date.now() });
         } catch (err) {
           console.error("Weather fetch error:", err);
           setState("error");
@@ -1754,7 +1802,7 @@ function WeatherWidget() {
   }, []);
 
   useEffect(() => {
-    fetchWeather();
+    fetchWeather(false);
   }, [fetchWeather]);
 
   if (state === "idle" || state === "asking") {
@@ -1770,7 +1818,7 @@ function WeatherWidget() {
       <div className="weather-chip">
         <span className="weather-icon">🌡️</span>
         <span>Weather unavailable</span>
-        <button onClick={fetchWeather}>Retry</button>
+        <button onClick={() => fetchWeather(true)}>Retry</button>
       </div>
     );
   }
@@ -1851,33 +1899,36 @@ function UpcomingBillsPanel({ monthlyItems, annualItems }) {
   );
 }
 
-function ProjectionsPanel({ income, monthlyExpenses, currentSavings }) {
-  const [surpriseBuffer, setSurpriseBuffer] = useState(300);
-  const [savingsGoal, setSavingsGoal] = useState(50000); 
-  
-  // 1. Periods are now in state as an array of months
-  const [periods, setPeriods] = useState([3, 6, 9, 12]);
-  
+function ProjectionsPanel({ income, monthlyExpenses, currentSavings, projections, onProjectionsChange }) {
+  // Periods, surprise buffer, and savings goal all live in the parent's
+  // `data` state now (see App's `projections` field) so they persist to
+  // localStorage just like everything else on the page.
+  const { periods, surpriseBuffer, savingsGoal } = projections;
+
   const monthlyNet = income - monthlyExpenses - surpriseBuffer;
 
-  // 2. Handlers to update, add, or remove custom month intervals
+  const setSurpriseBuffer = (value) => onProjectionsChange({ surpriseBuffer: value });
+  const setSavingsGoal = (value) => onProjectionsChange({ savingsGoal: value });
+
   const handlePeriodChange = (index, newValue) => {
     const updated = [...periods];
     updated[index] = newValue === "" ? "" : parseInt(newValue, 10);
-    setPeriods(updated);
+    onProjectionsChange({ periods: updated });
   };
 
   const addPeriod = () => {
     // Default a new period to 24 months
-    setPeriods([...periods, 24]);
+    onProjectionsChange({ periods: [...periods, 24] });
   };
 
   const removePeriod = (index) => {
-    setPeriods(periods.filter((_, i) => i !== index));
+    onProjectionsChange({ periods: periods.filter((_, i) => i !== index) });
   };
 
   const AXIS_TICKS = [100, 75, 50, 25, 0];
   const CHART_HEIGHT = 180;
+  const AXIS_WIDTH = 30;
+  const CHART_GAP = 16;
 
   return (
     <section className="ledger-panel wide-panel">
@@ -1886,16 +1937,16 @@ function ProjectionsPanel({ income, monthlyExpenses, currentSavings }) {
       </div>
       
       {/* Side-by-Side Layout Grid */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "24px", alignItems: "start" }} className="projections-split-grid">
+      <div style={{ display: "grid", gridTemplateColumns: "minmax(260px, 340px) 1fr", gap: "20px", alignItems: "stretch" }} className="projections-split-grid">
         
         {/* Left Side: Inputs */}
         <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-          <p className="panel-sub" style={{ marginBottom: 0 }}>
+          <p className="panel-sub" style={{ margin: 0 }}>
             Displays projected cash flow across future intervals based on your monthly income minus your monthly spending bills, starting with your current savings balance. Edit the months below to set custom milestones!
           </p>
 
-          <div className="balance-block" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <span className="field-label" style={{ marginBottom: 0, width: "190px", flexShrink: 0, whiteSpace: "normal" }}>Optional surprise buffer / month (Surprise bills):</span>
+          <div className="balance-block" style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+              <span className="field-label" style={{ marginBottom: 0, width: "170px", flexShrink: 0, whiteSpace: "normal" }}>Optional surprise buffer / month (Surprise bills):</span>
               <div className="amount-field big" style={{ flex: 1 }}>
                 <span className="dollar">$</span>
                 <input
@@ -1909,8 +1960,8 @@ function ProjectionsPanel({ income, monthlyExpenses, currentSavings }) {
               </div>
           </div>
 
-          <div className="balance-block" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <span className="field-label" style={{ marginBottom: 0, width: "190px", flexShrink: 0, whiteSpace: "normal" }}>Savings Goal target:</span>
+          <div className="balance-block" style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+              <span className="field-label" style={{ marginBottom: 0, width: "170px", flexShrink: 0, whiteSpace: "normal" }}>Savings Goal target:</span>
               <div className="amount-field big" style={{ flex: 1 }}>
                 <span className="dollar">$</span>
                 <input
@@ -1926,13 +1977,13 @@ function ProjectionsPanel({ income, monthlyExpenses, currentSavings }) {
         </div>
 
         {/* Right Side: Bar Chart */}
-        <div>
-          <div className="projections-chart" style={{ display: "flex", alignItems: "flex-end", gap: "16px", overflowX: "auto", paddingBottom: "10px" }}>
+        <div className="balance-block" style={{ display: "flex", flexDirection: "column" }}>
+          <div className="projections-chart" style={{ display: "flex", alignItems: "flex-end", gap: `${CHART_GAP}px`, overflowX: "auto", paddingBottom: "10px" }}>
 
             {/* Y Axis */}
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", flexShrink: 0 }}>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", flexShrink: 0, width: `${AXIS_WIDTH}px` }}>
               <span style={{ height: "19px", marginBottom: "6px" }} />
-              <div style={{ height: `${CHART_HEIGHT}px`, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+              <div style={{ height: `${CHART_HEIGHT}px`, width: "100%", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
                 {AXIS_TICKS.map((tick) => (
                   <span
                     key={tick}
@@ -2022,14 +2073,18 @@ function ProjectionsPanel({ income, monthlyExpenses, currentSavings }) {
             })}
           </div>
 
-          {/* Add New Milestone Button */}
-          <div style={{ display: "flex", justifyContent: "center", marginTop: "6px" }}>
-            <button 
-              onClick={addPeriod}
-              style={{ padding: "6px 14px", background: "var(--paper-alt)", border: "1px dashed var(--ink-soft)", borderRadius: "6px", cursor: "pointer", whiteSpace: "nowrap", fontSize: "11px" }}
-            >
-              + Add Milestone
-            </button>
+          {/* Add New Milestone Button — offset by the axis width + gap so it
+              centers over the bars themselves, not the axis labels beside them. */}
+          <div style={{ display: "flex", marginTop: "6px" }}>
+            <div style={{ width: `${AXIS_WIDTH + CHART_GAP}px`, flexShrink: 0 }} />
+            <div style={{ flex: 1, display: "flex", justifyContent: "center" }}>
+              <button 
+                onClick={addPeriod}
+                style={{ padding: "6px 14px", background: "var(--paper-alt)", border: "1px dashed var(--ink-soft)", borderRadius: "6px", cursor: "pointer", whiteSpace: "nowrap", fontSize: "11px" }}
+              >
+                + Add Milestone
+              </button>
+            </div>
           </div>
         </div>
 
@@ -2151,6 +2206,10 @@ function App() {
             movedThisCycle: it.movedThisCycle === undefined ? false : it.movedThisCycle,
           }));
         }
+        // Migration: fill in any projections fields (surprise buffer, savings
+        // goal, milestone periods) missing from data saved before these were
+        // persisted, so old saves don't crash on a missing field.
+        merged.projections = { ...defaultData().projections, ...(parsed.projections || {}) };
         setData(merged);
       } else {
         setData(defaultData());
@@ -2478,6 +2537,10 @@ const undoSettleChange = () => {
 };
   const updateAccount = (key) => (value) => {
     setData((d) => ({ ...d, accounts: { ...d.accounts, [key]: value } }));
+  };
+
+  const updateProjections = (patch) => {
+    setData((d) => ({ ...d, projections: { ...d.projections, ...patch } }));
   };
 
   const totals = useMemo(() => {
@@ -2896,6 +2959,8 @@ const undoSettleChange = () => {
         income={totals.income} 
         monthlyExpenses={totals.allMonthly} 
         currentSavings={totals.realSavings} 
+        projections={data.projections}
+        onProjectionsChange={updateProjections}
       />
 
       <footer className="ledger-footer">
