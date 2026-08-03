@@ -1605,12 +1605,21 @@ function ProjectionsPanel({ income, monthlyExpenses, currentSavings, projections
               const safeGoal = Math.max(savingsGoal, 1);
               const rawPercent = (val / safeGoal) * 100;
               const percent = Math.min(Math.max(rawPercent, 0), 100); 
+              const progressColor = val < 0
+                ? "var(--expense-deep)"
+                : percent < 25
+                ? "var(--progress-low)"
+                : percent < 50
+                ? "var(--progress-mid)"
+                : percent < 75
+                ? "var(--progress-high)"
+                : "var(--progress-goal)";
               
               return (
                 <div key={index} style={{ display: "flex", flexDirection: "column", alignItems: "center", width: "60px", flexShrink: 0 }}>
                   
                   {/* Value Label */}
-                  <span className={val >= 0 ? "savings" : "negative"} style={{ fontWeight: 600, fontSize: "10px", fontFamily: "'IBM Plex Mono', monospace", marginBottom: "6px", textAlign: "center" }}>
+                  <span style={{ fontWeight: 600, fontSize: "10px", fontFamily: "'IBM Plex Mono', monospace", marginBottom: "6px", textAlign: "center" }}>
                     {fmt(val)}
                   </span>
                   
@@ -1639,7 +1648,7 @@ function ProjectionsPanel({ income, monthlyExpenses, currentSavings, projections
                        style={{ 
                          height: `${percent}%`, 
                          width: "100%",
-                         background: val >= 0 ? "var(--savings)" : "var(--expense-deep)",
+                         background: progressColor,
                          transition: "height 0.3s ease"
                        }} 
                      />
@@ -2566,12 +2575,7 @@ const undoClearMonthlySpent = () => {
           </div>
 
           <div className="balance-block">
-            <div className="field-label-row">
-              <span className="field-label">Savings / money market balance</span>
-              <button type="button" className="add-btn small" onClick={openTransfer}>
-                Transfer to Checking
-              </button>
-            </div>
+            <span className="field-label">Savings / money market balance</span>
             <div className="amount-field big">
               <span className="dollar">$</span>
               <input
@@ -2590,6 +2594,11 @@ const undoClearMonthlySpent = () => {
               {totals.transfer > 0 && (
                 <span className="transfer-note">↳ sent {fmt(totals.transfer)} to checking to cover the shortfall</span>
               )}
+              <div className="settle-row">
+                <button type="button" className="add-btn small" onClick={openTransfer}>
+                  Transfer to Checking →
+                </button>
+              </div>
               <div className="monthly-spent-summary">
                 <span className="summary-label">Spent this month</span>
                 <span className="summary-value negative">{fmt(data.monthlySpent)}</span>
