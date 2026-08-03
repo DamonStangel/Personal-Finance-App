@@ -1523,7 +1523,7 @@ function ProjectionsPanel({ income, monthlyExpenses, currentSavings, projections
       </div>
       
       {/* Side-by-Side Layout Grid */}
-      <div style={{ display: "grid", gridTemplateColumns: "minmax(260px, 340px) 1fr", gap: "20px", alignItems: "stretch" }} className="projections-split-grid">
+      <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)", gap: "20px", alignItems: "stretch" }} className="projections-split-grid">
         
         {/* Left Side: Inputs */}
         <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
@@ -1564,7 +1564,18 @@ function ProjectionsPanel({ income, monthlyExpenses, currentSavings, projections
 
         {/* Right Side: Bar Chart */}
         <div className="balance-block" style={{ display: "flex", flexDirection: "column" }}>
-          <div className="projections-chart" style={{ display: "flex", alignItems: "flex-end", gap: `${CHART_GAP}px`, overflowX: "auto", paddingBottom: "10px" }}>
+          <div className="projections-chart" style={{ overflowX: "auto", paddingBottom: "10px" }}>
+            <div
+              className="projections-chart-content"
+              style={{
+                display: "flex",
+                alignItems: "flex-end",
+                justifyContent: "center",
+                gap: `${CHART_GAP}px`,
+                width: "max-content",
+                minWidth: "100%",
+              }}
+            >
 
             {/* Y Axis */}
             <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", flexShrink: 0, width: `${AXIS_WIDTH}px` }}>
@@ -1657,6 +1668,7 @@ function ProjectionsPanel({ income, monthlyExpenses, currentSavings, projections
                 </div>
               );
             })}
+            </div>
           </div>
 
           {/* Add New Milestone Button — offset by the axis width + gap so it
@@ -2557,7 +2569,7 @@ const undoClearMonthlySpent = () => {
             <div className="field-label-row">
               <span className="field-label">Savings / money market balance</span>
               <button type="button" className="add-btn small" onClick={openTransfer}>
-                Transfer
+                Transfer to Checking
               </button>
             </div>
             <div className="amount-field big">
