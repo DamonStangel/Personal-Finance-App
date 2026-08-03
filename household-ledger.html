@@ -1601,6 +1601,68 @@ function ProjectionsPanel({ income, monthlyExpenses, currentSavings, projections
   );
 }
 
+function TransferModal({ open, amount, onAmountChange, onCancel, onConfirm, error, availableSavings }) {
+  const inputRef = useRef(null);
+
+  useEffect(() => {
+    if (open && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKeyDown = (e) => {
+      if (e.key === "Escape") onCancel();
+      if (e.key === "Enter") onConfirm();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [open, onCancel, onConfirm]);
+
+  if (!open) return null;
+
+  return (
+    <div className="modal-overlay" onClick={onCancel}>
+      <div className="modal-panel" role="dialog" aria-modal="true" aria-labelledby="transfer-modal-title" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-head">
+          <h3 id="transfer-modal-title">Transfer</h3>
+          <button type="button" className="modal-close" onClick={onCancel} aria-label="Close">
+            ×
+          </button>
+        </div>
+        <p className="panel-sub small">Move money from savings into your checking / make-it money balance.</p>
+
+        <div className="amount-field big modal-amount">
+          <span className="dollar">$</span>
+          <input
+            ref={inputRef}
+            className="cell-input num-input"
+            type="number"
+            min="0"
+            step="0.01"
+            placeholder="0.00"
+            value={amount}
+            onChange={(e) => onAmountChange(e.target.value)}
+          />
+        </div>
+        <p className="foot-note modal-available">Available in savings: {fmt(availableSavings)}</p>
+
+        {error && <p className="warning modal-error">{error}</p>}
+
+        <div className="modal-actions">
+          <button type="button" className="add-btn" onClick={onCancel}>
+            Cancel
+          </button>
+          <button type="button" className="add-btn primary" onClick={onConfirm}>
+            Transfer to checking
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function App() {
   const [data, setData] = useState(null);
   const [status, setStatus] = useState("loading");
@@ -1611,6 +1673,9 @@ function App() {
   const [undoPaidExtraItems, setUndoPaidExtraItems] = useState(null);
   const [undoSettle, setUndoSettle] = useState(null);
   const [undoMonthlySpent, setUndoMonthlySpent] = useState(null);
+  const [transferOpen, setTransferOpen] = useState(false);
+  const [transferAmount, setTransferAmount] = useState("");
+  const [transferError, setTransferError] = useState("");
 
   const [pageTitle, setPageTitle] = useState(() => {
     try {
@@ -2135,6 +2200,39 @@ const undoClearMonthlySpent = () => {
     setData((d) => ({ ...d, accounts: { ...d.accounts, [key]: value } }));
   };
 
+  const openTransfer = () => {
+    setTransferAmount("");
+    setTransferError("");
+    setTransferOpen(true);
+  };
+
+  const closeTransfer = () => {
+    setTransferOpen(false);
+    setTransferAmount("");
+    setTransferError("");
+  };
+
+  const submitTransfer = () => {
+    const amt = money(transferAmount);
+    const availableSavings = parseFloat(data.accounts.savings) || 0;
+    if (!amt || amt <= 0) {
+      setTransferError("Enter an amount greater than $0.");
+      return;
+    }
+    if (amt > availableSavings) {
+      setTransferError(`Only ${fmt(availableSavings)} available in savings.`);
+      return;
+    }
+    setData((d) => ({
+      ...d,
+      accounts: {
+        checking: money((parseFloat(d.accounts.checking) || 0) + amt),
+        savings: money((parseFloat(d.accounts.savings) || 0) - amt),
+      },
+    }));
+    closeTransfer();
+  };
+
   const updateProjections = (patch) => {
     setData((d) => ({ ...d, projections: { ...d.projections, ...patch } }));
   };
@@ -2373,7 +2471,12 @@ const undoClearMonthlySpent = () => {
           </div>
 
           <div className="balance-block">
-            <span className="field-label">Savings / money market balance</span>
+            <div className="field-label-row">
+              <span className="field-label">Savings / money market balance</span>
+              <button type="button" className="add-btn small" onClick={openTransfer}>
+                Transfer
+              </button>
+            </div>
             <div className="amount-field big">
               <span className="dollar">$</span>
               <input
@@ -2579,6 +2682,16 @@ const undoClearMonthlySpent = () => {
         Figures are stored privately and only visible to you. Annual bills are automatically divided by
         12, and real balances combine your entered starting balance with the one-off items you log.
       </footer>
+
+      <TransferModal
+        open={transferOpen}
+        amount={transferAmount}
+        onAmountChange={setTransferAmount}
+        onCancel={closeTransfer}
+        onConfirm={submitTransfer}
+        error={transferError}
+        availableSavings={parseFloat(data.accounts.savings) || 0}
+      />
     </div>
   );
 }

@@ -895,3 +895,93 @@
 .collapse-arrow.is-open {
   transform: rotate(90deg);
 }
+
+/* Transfer modal (savings -> checking) */
+.field-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.field-label-row .field-label {
+  margin-bottom: 0;
+}
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 20, 18, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  z-index: 1000;
+}
+.modal-panel {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+  padding: 20px 22px 22px;
+  width: 100%;
+  max-width: 380px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.28);
+}
+.modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+.modal-head h3 {
+  margin: 0;
+  font-family: 'Source Serif 4', serif;
+  font-size: 20px;
+  color: var(--ink);
+}
+.modal-close {
+  background: transparent;
+  border: none;
+  color: var(--ink-soft);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 2px 4px;
+}
+.modal-close:hover { color: var(--ink); }
+.modal-amount {
+  margin-top: 14px;
+  padding: 10px 12px;
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+}
+.modal-amount .num-input {
+  font-size: 22px;
+  width: 100%;
+}
+.modal-available {
+  margin: 8px 0 0;
+}
+.modal-error {
+  margin: 10px 0 0;
+}
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 18px;
+}
+.add-btn.primary {
+  border-style: solid;
+  border-color: var(--income);
+  color: var(--income);
+}
+.add-btn.primary:hover {
+  background: var(--income);
+  color: var(--surface);
+}
+
+html[data-theme="dark"] .modal-overlay {
+  background: rgba(0, 0, 0, 0.65);
+}
