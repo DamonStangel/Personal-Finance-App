@@ -90,6 +90,19 @@ const signedTotal = (items, account) =>
       return acc + (i.direction === "add" ? amt : -amt);
     }, 0);
 
+const ORDERED_LIST_KEYS = ["monthlyItems", "annualItems", "incomeItems", "extraItems", "calculatorItems"];
+const withEntryOrder = (ledger) => {
+  const ordered = { ...ledger };
+  ORDERED_LIST_KEYS.forEach((key) => {
+    ordered[key] = (ledger[key] || []).map((item, index) => ({
+      ...item,
+      entryOrder: Number.isFinite(item.entryOrder) ? item.entryOrder : index,
+    }));
+  });
+  return ordered;
+};
+const nextEntryOrder = (items) => Math.max(-1, ...items.map((item) => Number(item.entryOrder) || 0)) + 1;
+
     function useSortableList(onReorder) {
       const [draggingId, setDraggingId] = useState(null);
       const [overId, setOverId] = useState(null);
@@ -125,6 +138,66 @@ const signedTotal = (items, account) =>
       return { draggingId, overId, startDrag, dragOverRow, dropOnRow, endDrag };
     }
 
+    // Sorting is intentionally display-only: returning to the default state shows
+    // the order in which items were entered and does not change any item data.
+    function useTableSort(items) {
+      const [sort, setSort] = useState({ key: null, direction: null });
+      const toggleSort = useCallback((key) => {
+        setSort((current) => {
+          if (current.key !== key) return { key, direction: "asc" };
+          if (current.direction === "asc") return { key, direction: "desc" };
+          return { key: null, direction: null };
+        });
+      }, []);
+      const sortedItems = useMemo(() => {
+        const inEntryOrder = () => items
+          .map((item, index) => ({ item, index }))
+          .sort((a, b) => (a.item.entryOrder - b.item.entryOrder) || a.index - b.index)
+          .map(({ item }) => item);
+        if (!sort.key || !sort.direction) return inEntryOrder();
+        const valueFor = (item) => {
+          if (sort.key === "name") return (item.name || "").trim().toLocaleLowerCase();
+          if (sort.key === "amount") return Number(item.amount) || 0;
+          if (sort.key === "date") return item.dueDate || (item.dueDay ? String(item.dueDay).padStart(2, "0") : "");
+          return "";
+        };
+        const direction = sort.direction === "asc" ? 1 : -1;
+        return items
+          .map((item, index) => ({ item, index, value: valueFor(item) }))
+          .sort((a, b) => {
+            // Keep blank dates at the end in either direction.
+            if (a.value === "" && b.value !== "") return 1;
+            if (a.value !== "" && b.value === "") return -1;
+            const comparison = typeof a.value === "string"
+              ? a.value.localeCompare(b.value, undefined, { numeric: true })
+              : a.value - b.value;
+            return comparison ? comparison * direction : a.index - b.index;
+          })
+          .map(({ item }) => item);
+      }, [items, sort]);
+      return { sortedItems, sort, toggleSort };
+    }
+
+    function SortHeader({ label, column, sort, onSort, className = "" }) {
+      const active = sort.key === column;
+      const icon = active ? (sort.direction === "asc" ? "↑" : "↓") : "↕";
+      const nextAction = !active || sort.direction === "desc"
+        ? `sort ${label.toLowerCase()} ascending`
+        : "sort descending";
+      return (
+        <span className={`sort-header ${className}`}>
+          <span>{label}</span>
+          <button
+            type="button"
+            className={`sort-button ${active ? "is-active" : ""}`}
+            onClick={() => onSort(column)}
+            title={`Click to ${nextAction}; click again to reverse; click once more for default order`}
+            aria-label={`Sort by ${label}: ${active ? sort.direction : "default order"}`}
+          >{icon}</button>
+        </span>
+      );
+    }
+
 function LineItemTable({
   title,
   subtitle,
@@ -139,6 +212,7 @@ function LineItemTable({
   footerNote,
 }) {
   const { draggingId, overId, startDrag, dragOverRow, dropOnRow, endDrag } = useSortableList(onReorder);
+  const { sortedItems, sort, toggleSort } = useTableSort(items);
   const nameInputRefs = useRef({});
   const prevCountRef = useRef(items.length);
   useEffect(() => {
@@ -159,15 +233,15 @@ function LineItemTable({
 <div className="table-wrap">
         <div className={`row row-head ${showType ? "with-type" : ""}`}>
           <span />
-          <span>Item</span>
+          <SortHeader label="Item" column="name" sort={sort} onSort={toggleSort} />
           {showType && <span>Type</span>}
-          <span className="num">Amount</span>
+          <SortHeader label="Amount" column="amount" sort={sort} onSort={toggleSort} className="num" />
           <span className="row-action" />
         </div>
 
         {items.length === 0 && <div className="empty-row">{emptyLabel}</div>}
 
-        {items.map((item) => (
+        {sortedItems.map((item) => (
           <div 
             key={item.id}
             className={`row ${showType ? "with-type" : ""} ${draggingId === item.id ? "dragging" : ""} ${overId === item.id && draggingId && draggingId !== item.id ? "drag-over-target" : ""}`}
@@ -279,6 +353,7 @@ function ExtraItemsTable({
     canUndoPaid,
 }) {
   const { draggingId, overId, startDrag, dragOverRow, dropOnRow, endDrag } = useSortableList(onReorder);
+  const { sortedItems, sort, toggleSort } = useTableSort(items);
   const [selectedIds, setSelectedIds] = useState(() => new Set());
   const nameInputRefs = useRef({});
   const prevCountRef = useRef(items.length);
@@ -343,11 +418,11 @@ function ExtraItemsTable({
           title="Select all"
           disabled={items.length === 0}
         />
-        <span>Item</span>
+        <SortHeader label="Item" column="name" sort={sort} onSort={toggleSort} />
         <span>Account</span>
         <span>Direction</span>
-        <span>Due date</span>
-        <span className="num">Amount</span>
+        <SortHeader label="Due date" column="date" sort={sort} onSort={toggleSort} />
+        <SortHeader label="Amount" column="amount" sort={sort} onSort={toggleSort} className="num" />
         <span className="row-action" />
       </div>
 
@@ -355,7 +430,7 @@ function ExtraItemsTable({
         <div className="empty-row">No one-off items yet — log a car repair, a bonus, a big purchase, etc.</div>
       )}
 
-      {items.map((item) => (
+      {sortedItems.map((item) => (
         <div 
           key={item.id}
           className={`row extra-row ${draggingId === item.id ? "dragging" : ""} ${overId === item.id && draggingId && draggingId !== item.id ? "drag-over-target" : ""} ${item.paid ? "paid" : ""}`}
@@ -524,6 +599,7 @@ function ExtraItemsTable({
 
 function ItemCalculatorTable({ items, onChange, onAdd, onRemove, onDeleteSelected, onDimSelected, onUndimSelected, onReorder, open, onToggleOpen }) {
   const { draggingId, overId, startDrag, dragOverRow, dropOnRow, endDrag } = useSortableList(onReorder);
+  const { sortedItems, sort, toggleSort } = useTableSort(items);
   const [selectedIds, setSelectedIds] = useState(() => new Set());
   const nameInputRefs = useRef({});
   const prevCountRef = useRef(items.length);
@@ -599,13 +675,13 @@ function ItemCalculatorTable({ items, onChange, onAdd, onRemove, onDeleteSelecte
             <div className="row calculator-row row-head">
               <span />
               <input type="checkbox" className="row-select" checked={allSelected} onChange={toggleSelectAll} title="Select all" disabled={!items.length} />
-              <span>Item</span>
+              <SortHeader label="Item" column="name" sort={sort} onSort={toggleSort} />
               <span>Operation</span>
-              <span className="num">Amount</span>
+              <SortHeader label="Amount" column="amount" sort={sort} onSort={toggleSort} className="num" />
               <span className="row-action" />
             </div>
             {!items.length && <div className="empty-row">No calculator items yet — add an item to start totaling.</div>}
-            {items.map((item) => (
+            {sortedItems.map((item) => (
               <div
                 key={item.id}
                 className={`row calculator-row ${draggingId === item.id ? "dragging" : ""} ${overId === item.id && draggingId && draggingId !== item.id ? "drag-over-target" : ""} ${item.dimmed ? "dimmed" : ""}`}
@@ -701,6 +777,7 @@ function AnnualBillsTable({
   onDimSelected,
 }) {
   const { draggingId, overId, startDrag, dragOverRow, dropOnRow, endDrag } = useSortableList(onReorder);
+  const { sortedItems, sort, toggleSort } = useTableSort(items);
   const [selectedIds, setSelectedIds] = useState(() => new Set());
   const nameInputRefs = useRef({});
   const prevCountRef = useRef(items.length);
@@ -776,16 +853,16 @@ function AnnualBillsTable({
             title="Select all"
             disabled={items.length === 0}
           />
-          <span>Item</span>
-          <span>Due date</span>
-          <span className="num">Amount</span>
+          <SortHeader label="Item" column="name" sort={sort} onSort={toggleSort} />
+          <SortHeader label="Due date" column="date" sort={sort} onSort={toggleSort} />
+          <SortHeader label="Amount" column="amount" sort={sort} onSort={toggleSort} className="num" />
           <span />
           <span className="row-action" />
         </div>
 
         {items.length === 0 && <div className="empty-row">{emptyLabel}</div>}
 
-        {items.map((item) => {
+        {sortedItems.map((item) => {
           const remaining = daysUntil(item.dueDate);
           return (
             <div
@@ -931,6 +1008,7 @@ function MonthlyItemsTable({
   onDimSelected,
 }) {
   const { draggingId, overId, startDrag, dragOverRow, dropOnRow, endDrag } = useSortableList(onReorder);
+  const { sortedItems, sort, toggleSort } = useTableSort(items);
   const [selectedIds, setSelectedIds] = useState(() => new Set());
   const nameInputRefs = useRef({});
   const prevCountRef = useRef(items.length);
@@ -1009,17 +1087,17 @@ function MonthlyItemsTable({
             title="Select all"
             disabled={items.length === 0}
           />
-          <span>Item</span>
+          <SortHeader label="Item" column="name" sort={sort} onSort={toggleSort} />
           <span>Type</span>
-          <span>Due day</span>
-          <span className="num">Amount</span>
+          <SortHeader label="Due day" column="date" sort={sort} onSort={toggleSort} />
+          <SortHeader label="Amount" column="amount" sort={sort} onSort={toggleSort} className="num" />
           <span />
           <span className="row-action" />
         </div>
 
         {items.length === 0 && <div className="empty-row">{emptyLabel}</div>}
 
-        {items.map((item) => (
+        {sortedItems.map((item) => (
           <div
             key={item.id}
             className={`row monthly-row ${draggingId === item.id ? "dragging" : ""} ${overId === item.id && draggingId && draggingId !== item.id ? "drag-over-target" : ""} ${item.dimmed ? "dimmed" : ""}`}
@@ -1830,13 +1908,13 @@ function App() {
         // goal, milestone periods) missing from data saved before these were
         // persisted, so old saves don't crash on a missing field.
         merged.projections = { ...defaultData().projections, ...(parsed.projections || {}) };
-        setData(merged);
+        setData(withEntryOrder(merged));
       } else {
-        setData(defaultData());
+        setData(withEntryOrder(defaultData()));
       }
     } catch (err) {
       console.error("Ledger load error:", err);
-      setData(defaultData());
+      setData(withEntryOrder(defaultData()));
     }
     setStatus("ready");
   }, []);
@@ -1868,7 +1946,10 @@ function App() {
     }));
   };
   const addItem = (listKey, shape) => () => {
-    setData((d) => ({ ...d, [listKey]: [...d[listKey], { id: genId(), ...shape }] }));
+    setData((d) => ({
+      ...d,
+      [listKey]: [...d[listKey], { id: genId(), entryOrder: nextEntryOrder(d[listKey]), ...shape }],
+    }));
   };
 
   const reorderItems = (listKey) => (activeId, overId) => {
@@ -2049,6 +2130,7 @@ const moveAnnualItemToOneOff = (id) => {
     if (!bill || bill.movedThisCycle) return d;
     const newExtraItem = {
       id: genId(),
+      entryOrder: nextEntryOrder(d.extraItems),
       name: bill.name,
       account: "checking",
       direction: "subtract",
@@ -2105,6 +2187,7 @@ const moveMonthlyItemToOneOff = (id) => {
     if (!item || item.dimmed) return d;
     const newExtraItem = {
       id: genId(),
+      entryOrder: nextEntryOrder(d.extraItems),
       name: item.name,
       account: "checking",
       direction: "subtract",

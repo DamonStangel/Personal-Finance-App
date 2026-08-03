@@ -395,6 +395,35 @@
     padding-bottom: 8px;
   }
   .row-head .num { text-align: right; }
+  .sort-header {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    min-width: 0;
+  }
+  .sort-header.num { justify-content: flex-end; width: 100%; }
+  .sort-button {
+    display: inline-grid;
+    place-items: center;
+    width: 19px;
+    height: 19px;
+    padding: 0;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    color: var(--ink-soft);
+    background: transparent;
+    font: inherit;
+    font-size: 14px;
+    line-height: 1;
+    cursor: pointer;
+  }
+  .sort-button:hover, .sort-button:focus-visible {
+    color: var(--ink);
+    border-color: var(--rule);
+    background: var(--surface);
+    outline: none;
+  }
+  .sort-button.is-active { color: var(--accent, var(--ink)); border-color: var(--rule); }
   .empty-row { padding: 14px 0; font-size: 13px; color: var(--ink-soft); font-style: italic; }
 
   .cell-input {
