@@ -3,7 +3,7 @@ I created a Personal Finance Application to help track monthly spending and keep
 
 **STEPS TO USE APP**
 
-  1. Clone repo or download folder as zip.
+  1. Clone repo or download folder as zip using the green code dropdown button.
   2. Extract files into a file location - preferably not in the downloads folder.
   3. After the extract is complete, navigate and find the household-ledger.html file in file explorer.
   4. Double click to open the html file in a browser in order to use it locally.
