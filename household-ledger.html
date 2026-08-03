@@ -57,6 +57,7 @@ const defaultData = () => ({
     { id: genId(), name: "Vet visit (pending)", account: "checking", direction: "subtract", amount: 120, paid: false },
   ],
   calculatorItems: [],
+  calculatorOpen: true,
   monthlySpent: 0,
   projections: {
     surpriseBuffer: 300,
@@ -411,8 +412,9 @@ function ExtraItemsTable({
 
           <select
             className="mini-select"
-            value={item.account}
-            disabled={item.paid}
+            value={item.direction === "add" ? "savings" : item.account}
+            disabled={item.paid || item.direction === "add"}
+            title={item.direction === "add" ? "Received items always go to savings" : undefined}
             onChange={(e) => onChange(item.id, { account: e.target.value })}
           >
             <option value="checking">Checking</option>
@@ -423,7 +425,14 @@ function ExtraItemsTable({
             className="mini-select"
             value={item.direction}
             disabled={item.paid}
-            onChange={(e) => onChange(item.id, { direction: e.target.value })}
+            onChange={(e) => {
+              const direction = e.target.value;
+              // Received money always lands in savings, not checking
+              onChange(item.id, {
+                direction,
+                account: direction === "add" ? "savings" : item.account,
+              });
+            }}
           >
             <option value="subtract">Spent (−)</option>
             <option value="add">Received (+)</option>
@@ -513,7 +522,7 @@ function ExtraItemsTable({
   );
 }
 
-function ItemCalculatorTable({ items, onChange, onAdd, onRemove, onDeleteSelected, onDimSelected, onUndimSelected, onReorder }) {
+function ItemCalculatorTable({ items, onChange, onAdd, onRemove, onDeleteSelected, onDimSelected, onUndimSelected, onReorder, open, onToggleOpen }) {
   const { draggingId, overId, startDrag, dragOverRow, dropOnRow, endDrag } = useSortableList(onReorder);
   const [selectedIds, setSelectedIds] = useState(() => new Set());
   const nameInputRefs = useRef({});
@@ -568,51 +577,67 @@ function ItemCalculatorTable({ items, onChange, onAdd, onRemove, onDeleteSelecte
 
   return (
     <section className="ledger-panel wide-panel">
-      <div className="panel-head">
-        <h2>Item calculator</h2>
-        <p className="panel-sub">Add a quick list of costs and credits without changing any real balances. Use + or − to include each item as an addition or subtraction.</p>
-      </div>
-      <div className="table-wrap calculator-table">
-        <div className="row calculator-row row-head">
-          <span />
-          <input type="checkbox" className="row-select" checked={allSelected} onChange={toggleSelectAll} title="Select all" disabled={!items.length} />
-          <span>Item</span>
-          <span>Operation</span>
-          <span className="num">Amount</span>
-          <span className="row-action" />
+      <div className="panel-head calculator-panel-head">
+        <div className="calculator-head-text">
+          <h2>Item calculator</h2>
+          <p className="panel-sub">Add a quick list of costs and credits without changing any real balances. Use + or − to include each item as an addition or subtraction.</p>
         </div>
-        {!items.length && <div className="empty-row">No calculator items yet — add an item to start totaling.</div>}
-        {items.map((item) => (
-          <div
-            key={item.id}
-            className={`row calculator-row ${draggingId === item.id ? "dragging" : ""} ${overId === item.id && draggingId && draggingId !== item.id ? "drag-over-target" : ""} ${item.dimmed ? "dimmed" : ""}`}
-            onDragOver={(e) => { if (draggingId) { e.preventDefault(); dragOverRow(item.id); } }}
-            onDrop={(e) => { if (draggingId) { e.preventDefault(); dropOnRow(item.id); } }}
-          >
-            <div className="drag-handle" title="Drag to reorder" draggable onDragStart={(e) => { e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", item.id); startDrag(item.id); }} onDragEnd={endDrag}>⋮⋮</div>
-            <input type="checkbox" className="row-select" checked={selectedIds.has(item.id)} onChange={() => toggleSelect(item.id)} aria-label={`Select ${item.name || "item"}`} />
-            <input className="cell-input name-input" type="text" value={item.name} placeholder="Item name" ref={(el) => { if (el) nameInputRefs.current[item.id] = el; else delete nameInputRefs.current[item.id]; }} onChange={(e) => onChange(item.id, { name: e.target.value })} />
-            <select className="mini-select" value={item.direction} onChange={(e) => onChange(item.id, { direction: e.target.value })} aria-label={`Operation for ${item.name || "item"}`}>
-              <option value="subtract">Subtract (−)</option>
-              <option value="add">Add (+)</option>
-            </select>
-            <div className="amount-field"><span className="dollar">$</span><input className="cell-input num-input" type="number" step="0.01" min="0" inputMode="decimal" value={item.amount} onChange={(e) => onChange(item.id, { amount: e.target.value === "" ? "" : money(e.target.value) })} onBlur={(e) => onChange(item.id, { amount: moneyText(e.target.value) })} /></div>
-            <button className="row-remove" onClick={() => removeOne(item.id)} aria-label={`Remove ${item.name || "item"}`}>×</button>
+        <button
+          type="button"
+          className="collapse-toggle"
+          onClick={onToggleOpen}
+          aria-expanded={open}
+          title={open ? "Collapse the item calculator" : "Expand the item calculator"}
+        >
+          <span className={`collapse-arrow ${open ? "is-open" : ""}`} aria-hidden="true">▸</span>
+          {open ? "Collapse" : "Expand"}
+        </button>
+      </div>
+      {open && (
+        <React.Fragment>
+          <div className="table-wrap calculator-table">
+            <div className="row calculator-row row-head">
+              <span />
+              <input type="checkbox" className="row-select" checked={allSelected} onChange={toggleSelectAll} title="Select all" disabled={!items.length} />
+              <span>Item</span>
+              <span>Operation</span>
+              <span className="num">Amount</span>
+              <span className="row-action" />
+            </div>
+            {!items.length && <div className="empty-row">No calculator items yet — add an item to start totaling.</div>}
+            {items.map((item) => (
+              <div
+                key={item.id}
+                className={`row calculator-row ${draggingId === item.id ? "dragging" : ""} ${overId === item.id && draggingId && draggingId !== item.id ? "drag-over-target" : ""} ${item.dimmed ? "dimmed" : ""}`}
+                onDragOver={(e) => { if (draggingId) { e.preventDefault(); dragOverRow(item.id); } }}
+                onDrop={(e) => { if (draggingId) { e.preventDefault(); dropOnRow(item.id); } }}
+              >
+                <div className="drag-handle" title="Drag to reorder" draggable onDragStart={(e) => { e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", item.id); startDrag(item.id); }} onDragEnd={endDrag}>⋮⋮</div>
+                <input type="checkbox" className="row-select" checked={selectedIds.has(item.id)} onChange={() => toggleSelect(item.id)} aria-label={`Select ${item.name || "item"}`} />
+                <input className="cell-input name-input" type="text" value={item.name} placeholder="Item name" ref={(el) => { if (el) nameInputRefs.current[item.id] = el; else delete nameInputRefs.current[item.id]; }} onChange={(e) => onChange(item.id, { name: e.target.value })} />
+                <select className="mini-select" value={item.direction} onChange={(e) => onChange(item.id, { direction: e.target.value })} aria-label={`Operation for ${item.name || "item"}`}>
+                  <option value="subtract">Subtract (−)</option>
+                  <option value="add">Add (+)</option>
+                </select>
+                <div className="amount-field"><span className="dollar">$</span><input className="cell-input num-input" type="number" step="0.01" min="0" inputMode="decimal" value={item.amount} onChange={(e) => onChange(item.id, { amount: e.target.value === "" ? "" : money(e.target.value) })} onBlur={(e) => onChange(item.id, { amount: moneyText(e.target.value) })} /></div>
+                <button className="row-remove" onClick={() => removeOne(item.id)} aria-label={`Remove ${item.name || "item"}`}>×</button>
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
-      <div className="calculator-total">
-        <span className="summary-label">Calculator total (excluding dimmed items)</span>
-        <span className={`summary-value ${total < 0 ? "negative" : "income"}`}>{fmt(total)}</span>
-      </div>
-      <div className="panel-foot">
-        <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
-          <button className="add-btn" onClick={onAdd}>+ Add item</button>
-          <button className="add-btn" onClick={dimSelected} disabled={!selectedIds.size}>Dim selected{selectedIds.size ? ` (${selectedIds.size})` : ""}</button>
-          <button className="add-btn" onClick={undimSelected} disabled={!selectedIds.size}>Undim selected</button>
-          <button className="add-btn danger" onClick={deleteSelected} disabled={!selectedIds.size}>Delete selected{selectedIds.size ? ` (${selectedIds.size})` : ""}</button>
-        </div>
-      </div>
+          <div className="calculator-total">
+            <span className="summary-label">Calculator total (excluding dimmed items)</span>
+            <span className={`summary-value ${total < 0 ? "negative" : "income"}`}>{fmt(total)}</span>
+          </div>
+          <div className="panel-foot">
+            <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+              <button className="add-btn" onClick={onAdd}>+ Add item</button>
+              <button className="add-btn" onClick={dimSelected} disabled={!selectedIds.size}>Dim selected{selectedIds.size ? ` (${selectedIds.size})` : ""}</button>
+              <button className="add-btn" onClick={undimSelected} disabled={!selectedIds.size}>Undim selected</button>
+              <button className="add-btn danger" onClick={deleteSelected} disabled={!selectedIds.size}>Delete selected{selectedIds.size ? ` (${selectedIds.size})` : ""}</button>
+            </div>
+          </div>
+        </React.Fragment>
+      )}
     </section>
   );
 }
@@ -1666,6 +1691,9 @@ function App() {
         const parsed = JSON.parse(raw);
         const merged = { ...defaultData(), ...parsed, accounts: { ...defaultData().accounts, ...(parsed.accounts || {}) } };
         merged.monthlySpent = parseFloat(parsed.monthlySpent) || 0;
+        // Migration: default to expanded for saves made before the
+        // collapsible item calculator existed.
+        merged.calculatorOpen = typeof parsed.calculatorOpen === "boolean" ? parsed.calculatorOpen : true;
         // Migration: keep the stand-alone calculator list separate from any
         // balance-affecting records, including saves made before it existed.
         merged.calculatorItems = Array.isArray(parsed.calculatorItems)
@@ -1710,6 +1738,10 @@ function App() {
               dueDate:
                 it.dueDate ||
                 (dueDay ? toDateInputValue(nextMonthlyOccurrence(dueDay)) : annualSource?.dueDate || ""),
+              // Migration: Received items saved before this was enforced may
+              // still be tagged "checking" — force them to savings so old
+              // saves match the new behavior.
+              account: it.direction === "add" ? "savings" : it.account,
             };
           });
         }
@@ -1800,6 +1832,9 @@ function App() {
     const idSet = new Set(ids);
     setData((d) => ({ ...d, [listKey]: d[listKey].filter((it) => !idSet.has(it.id)) }));
   };
+  const toggleCalculatorOpen = () => {
+    setData((d) => ({ ...d, calculatorOpen: !d.calculatorOpen }));
+  };
   const setCalculatorItemsDimmed = (ids, dimmed) => {
     if (!ids.length) return;
     const idSet = new Set(ids);
@@ -1865,8 +1900,9 @@ const markExtraItemsPaid = (ids) => {
 
       const amount = parseFloat(item.amount) || 0;
       const delta = item.direction === "add" ? amount : -amount;
+      const acct = item.direction === "add" ? "savings" : item.account;
 
-      accounts[item.account] = money((parseFloat(accounts[item.account]) || 0) + delta);
+      accounts[acct] = money((parseFloat(accounts[acct]) || 0) + delta);
       if (item.direction === "subtract") monthlySpent = money(monthlySpent + amount);
 
       return {
@@ -1906,8 +1942,9 @@ const markExtraItemsUnpaid = (ids) => {
 
       // Reverse whatever Paid previously did
       const delta = item.direction === "add" ? -amount : amount;
+      const acct = item.direction === "add" ? "savings" : item.account;
 
-      accounts[item.account] = money((parseFloat(accounts[item.account]) || 0) + delta);
+      accounts[acct] = money((parseFloat(accounts[acct]) || 0) + delta);
       if (item.direction === "subtract") monthlySpent = money(Math.max(0, monthlySpent - amount));
 
       return {
@@ -2401,6 +2438,8 @@ const undoClearMonthlySpent = () => {
         onDimSelected={(ids) => setCalculatorItemsDimmed(ids, true)}
         onUndimSelected={(ids) => setCalculatorItemsDimmed(ids, false)}
         onReorder={reorderItems("calculatorItems")}
+        open={data.calculatorOpen}
+        onToggleOpen={toggleCalculatorOpen}
       />
 
       <div className="grid">

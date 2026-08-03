@@ -846,3 +846,52 @@
     gap: 28px;
   }
 }
+
+/* ============================================================
+   Item calculator — collapsible panel
+   ============================================================ */
+.calculator-panel-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.calculator-head-text {
+  flex: 1;
+  min-width: 200px;
+}
+.calculator-head-text h2 {
+  margin: 0 0 4px;
+}
+.calculator-head-text .panel-sub {
+  margin: 0;
+}
+.collapse-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-soft);
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: 100px;
+  padding: 6px 12px;
+  cursor: pointer;
+}
+.collapse-toggle:hover {
+  border-color: var(--ink);
+  color: var(--ink);
+}
+.collapse-arrow {
+  display: inline-block;
+  font-size: 10px;
+  transition: transform 0.15s ease;
+}
+.collapse-arrow.is-open {
+  transform: rotate(90deg);
+}
