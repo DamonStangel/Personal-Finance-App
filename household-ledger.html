@@ -24,6 +24,23 @@ const THEME_KEY = "household-ledger-theme-v1";
 const DEFAULT_TITLE = "Personal Finances";
 
 const genId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+const monthKeyFromDate = (date = new Date()) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  return `${year}-${month}`;
+};
+const nextMonthKey = (monthKey) => {
+  const [year, month] = (monthKey || monthKeyFromDate()).split("-").map(Number);
+  const next = new Date(year, month, 1);
+  return monthKeyFromDate(next);
+};
+const formatMonthLabel = (monthKey) => {
+  if (!/^\d{4}-\d{2}$/.test(monthKey || "")) return "This month";
+  return new Date(`${monthKey}-01T12:00:00`).toLocaleDateString("en-US", {
+    month: "long",
+    year: "numeric",
+  });
+};
 
 const defaultData = () => ({
   monthlyItems: [
@@ -59,6 +76,11 @@ const defaultData = () => ({
   calculatorItems: [],
   calculatorOpen: true,
   monthlySpent: 0,
+  monthlySavingsTracker: {
+    activeMonth: monthKeyFromDate(),
+    history: [],
+    actualIncomeByMonth: {},
+  },
   projections: {
     surpriseBuffer: 300,
     savingsGoal: 50000,
@@ -1485,6 +1507,117 @@ function UpcomingBillsPanel({ monthlyItems, annualItems }) {
   );
 }
 
+function MonthlySavingsTracker({ income, spent, tracker, onMonthChange, onAddIncome, onChangeIncome, onRemoveIncome }) {
+  const activeMonth = tracker?.activeMonth || monthKeyFromDate();
+  const projectedSaved = money(income - spent);
+  const actualIncomeItems = tracker?.actualIncomeByMonth?.[activeMonth] || [];
+  const actualIncome = sum(actualIncomeItems);
+  const actualSaved = money(actualIncome - spent);
+  const history = [...(tracker?.history || [])].sort((a, b) => b.month.localeCompare(a.month));
+
+  return (
+    <section className="ledger-panel wide-panel savings-tracker-panel">
+      <div className="panel-head tracker-head">
+        <div>
+          <h2>Monthly savings tracker</h2>
+          <p className="panel-sub">
+            Compare your planned income with the real deposits you receive. Spending updates automatically
+            when you mark one-off items as paid.
+          </p>
+        </div>
+        <label className="tracker-month-picker">
+          <span className="field-label">Tracking month</span>
+          <input
+            className="cell-input"
+            type="month"
+            value={activeMonth}
+            onChange={(e) => onMonthChange(e.target.value || monthKeyFromDate())}
+            aria-label="Month being tracked"
+          />
+        </label>
+      </div>
+
+      <div className="tracker-metrics">
+        <div className="tracker-stat">
+          <span className="summary-label">Projected monthly income</span>
+          <strong>{fmt(income)}</strong>
+        </div>
+        <div className="tracker-stat">
+          <span className="summary-label">Spent this month</span>
+          <strong className="negative">{fmt(spent)}</strong>
+        </div>
+        <div className="tracker-stat tracker-saved">
+          <span className="summary-label">Projected savings / saved so far</span>
+          <strong className={projectedSaved < 0 ? "negative" : "income"}>{fmt(projectedSaved)}</strong>
+        </div>
+      </div>
+
+      <div className="tracker-actual-income">
+        <div className="tracker-actual-head">
+          <div>
+            <span className="summary-label">Actual {formatMonthLabel(activeMonth)} income</span>
+            <p className="foot-note">Add each paycheck, deposit, or other income received during this month.</p>
+          </div>
+          <div className="tracker-actual-total">
+            <span className="summary-label">Actual savings</span>
+            <strong className={actualSaved < 0 ? "negative" : "income"}>{fmt(actualSaved)}</strong>
+          </div>
+        </div>
+        <div className="tracker-income-list">
+          {actualIncomeItems.length === 0 && (
+            <p className="foot-note tracker-income-empty">No actual income entered for this month yet.</p>
+          )}
+          {actualIncomeItems.map((item) => (
+            <div className="tracker-income-row" key={item.id}>
+              <input
+                className="cell-input"
+                type="text"
+                value={item.name}
+                placeholder="Income source"
+                onChange={(e) => onChangeIncome(item.id, { name: e.target.value })}
+              />
+              <div className="amount-field">
+                <span className="dollar">$</span>
+                <input
+                  className="cell-input num-input"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  inputMode="decimal"
+                  value={item.amount}
+                  onChange={(e) => onChangeIncome(item.id, { amount: e.target.value === "" ? "" : money(e.target.value) })}
+                  onBlur={(e) => onChangeIncome(item.id, { amount: moneyText(e.target.value) })}
+                />
+              </div>
+              <button className="row-remove" type="button" onClick={() => onRemoveIncome(item.id)} aria-label={`Remove ${item.name || "income entry"}`}>×</button>
+            </div>
+          ))}
+        </div>
+        <div className="tracker-actual-foot">
+          <button type="button" className="add-btn" onClick={onAddIncome}>+ Add actual income</button>
+          <span className="foot-note">Received so far: {fmt(actualIncome)}</span>
+        </div>
+      </div>
+
+      {history.length > 0 && (
+        <div className="tracker-history">
+          <span className="summary-label">Completed months</span>
+          <div className="tracker-history-list">
+            {history.map((record) => (
+              <div className="tracker-history-row" key={record.month}>
+                <span>{formatMonthLabel(record.month)}</span>
+                <span>Actual income {fmt(record.actualIncome)}</span>
+                <span>Spent {fmt(record.spent)}</span>
+                <strong className={record.actualSaved < 0 ? "negative" : "income"}>{fmt(record.actualSaved)}</strong>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
 function ProjectionsPanel({ income, monthlyExpenses, currentSavings, projections, onProjectionsChange }) {
   // Periods, surprise buffer, and savings goal all live in the parent's
   // `data` state now (see App's `projections` field) so they persist to
@@ -1855,6 +1988,35 @@ function App() {
         const parsed = JSON.parse(raw);
         const merged = { ...defaultData(), ...parsed, accounts: { ...defaultData().accounts, ...(parsed.accounts || {}) } };
         merged.monthlySpent = parseFloat(parsed.monthlySpent) || 0;
+        merged.monthlySavingsTracker = {
+          ...defaultData().monthlySavingsTracker,
+          ...(parsed.monthlySavingsTracker || {}),
+          activeMonth: /^\d{4}-\d{2}$/.test(parsed.monthlySavingsTracker?.activeMonth || "")
+            ? parsed.monthlySavingsTracker.activeMonth
+            : monthKeyFromDate(),
+          actualIncomeByMonth: Object.fromEntries(
+            Object.entries(parsed.monthlySavingsTracker?.actualIncomeByMonth || {})
+              .filter(([month, items]) => /^\d{4}-\d{2}$/.test(month) && Array.isArray(items))
+              .map(([month, items]) => [
+                month,
+                items.map((item) => ({
+                  id: item.id || genId(),
+                  name: item.name || "",
+                  amount: money(item.amount),
+                })),
+              ])
+          ),
+          history: Array.isArray(parsed.monthlySavingsTracker?.history)
+            ? parsed.monthlySavingsTracker.history
+                .filter((record) => /^\d{4}-\d{2}$/.test(record?.month || ""))
+                .map((record) => ({
+                  month: record.month,
+                  actualIncome: money(record.actualIncome === undefined ? record.income : record.actualIncome),
+                  spent: money(record.spent),
+                  actualSaved: money(record.actualSaved === undefined ? record.saved : record.actualSaved),
+                }))
+            : [],
+        };
         // Migration: default to expanded for saves made before the
         // collapsible item calculator existed.
         merged.calculatorOpen = typeof parsed.calculatorOpen === "boolean" ? parsed.calculatorOpen : true;
@@ -2291,14 +2453,92 @@ const clearMonthlySpent = () => {
   setData((d) => {
     const spent = parseFloat(d.monthlySpent) || 0;
     if (spent === 0) return d;
-    setUndoMonthlySpent(spent);
-    return { ...d, monthlySpent: 0 };
+    const tracker = d.monthlySavingsTracker || defaultData().monthlySavingsTracker;
+    const month = tracker.activeMonth || monthKeyFromDate();
+    const actualIncome = sum(tracker.actualIncomeByMonth?.[month] || []);
+    const completedMonth = {
+      month,
+      actualIncome,
+      spent: money(spent),
+      actualSaved: money(actualIncome - spent),
+    };
+    setUndoMonthlySpent({ spent, tracker });
+    return {
+      ...d,
+      monthlySpent: 0,
+      monthlySavingsTracker: {
+        activeMonth: nextMonthKey(month),
+        history: [...(tracker.history || []).filter((record) => record.month !== month), completedMonth],
+        actualIncomeByMonth: tracker.actualIncomeByMonth || {},
+      },
+    };
   });
 };
 const undoClearMonthlySpent = () => {
   if (undoMonthlySpent === null) return;
-  setData((d) => ({ ...d, monthlySpent: undoMonthlySpent }));
+  setData((d) => ({
+    ...d,
+    monthlySpent: undoMonthlySpent.spent,
+    monthlySavingsTracker: undoMonthlySpent.tracker,
+  }));
   setUndoMonthlySpent(null);
+};
+const updateTrackingMonth = (activeMonth) => {
+  setData((d) => ({
+    ...d,
+    monthlySavingsTracker: { ...(d.monthlySavingsTracker || {}), activeMonth },
+  }));
+};
+const addActualIncome = () => {
+  setData((d) => {
+    const tracker = d.monthlySavingsTracker || defaultData().monthlySavingsTracker;
+    const month = tracker.activeMonth || monthKeyFromDate();
+    const currentItems = tracker.actualIncomeByMonth?.[month] || [];
+    return {
+      ...d,
+      monthlySavingsTracker: {
+        ...tracker,
+        actualIncomeByMonth: {
+          ...(tracker.actualIncomeByMonth || {}),
+          [month]: [...currentItems, { id: genId(), name: "", amount: 0 }],
+        },
+      },
+    };
+  });
+};
+const updateActualIncome = (id, patch) => {
+  setData((d) => {
+    const tracker = d.monthlySavingsTracker || defaultData().monthlySavingsTracker;
+    const month = tracker.activeMonth || monthKeyFromDate();
+    const currentItems = tracker.actualIncomeByMonth?.[month] || [];
+    return {
+      ...d,
+      monthlySavingsTracker: {
+        ...tracker,
+        actualIncomeByMonth: {
+          ...(tracker.actualIncomeByMonth || {}),
+          [month]: currentItems.map((item) => (item.id === id ? { ...item, ...patch } : item)),
+        },
+      },
+    };
+  });
+};
+const removeActualIncome = (id) => {
+  setData((d) => {
+    const tracker = d.monthlySavingsTracker || defaultData().monthlySavingsTracker;
+    const month = tracker.activeMonth || monthKeyFromDate();
+    const currentItems = tracker.actualIncomeByMonth?.[month] || [];
+    return {
+      ...d,
+      monthlySavingsTracker: {
+        ...tracker,
+        actualIncomeByMonth: {
+          ...(tracker.actualIncomeByMonth || {}),
+          [month]: currentItems.filter((item) => item.id !== id),
+        },
+      },
+    };
+  });
 };
   const updateAccount = (key) => (value) => {
     setData((d) => ({ ...d, accounts: { ...d.accounts, [key]: value } }));
@@ -2603,7 +2843,7 @@ const undoClearMonthlySpent = () => {
                 <span className="summary-label">Spent this month</span>
                 <span className="summary-value negative">{fmt(data.monthlySpent)}</span>
                 <div className="settle-row">
-                  <button className="add-btn" onClick={clearMonthlySpent} disabled={(parseFloat(data.monthlySpent) || 0) === 0}>
+                  <button className="add-btn" onClick={clearMonthlySpent} disabled={(parseFloat(data.monthlySpent) || 0) === 0} title="Save the tracked month, then start the next month at $0 spent">
                     Clear monthly total
                   </button>
                   <button className="add-btn" onClick={undoClearMonthlySpent} disabled={undoMonthlySpent === null}>
@@ -2635,6 +2875,16 @@ const undoClearMonthlySpent = () => {
           onReorder={reorderItems("extraItems")}
         />
       </section>
+
+      <MonthlySavingsTracker
+        income={totals.income}
+        spent={money(data.monthlySpent)}
+        tracker={data.monthlySavingsTracker}
+        onMonthChange={updateTrackingMonth}
+        onAddIncome={addActualIncome}
+        onChangeIncome={updateActualIncome}
+        onRemoveIncome={removeActualIncome}
+      />
 
       <ItemCalculatorTable
         items={data.calculatorItems}

@@ -164,7 +164,6 @@
     cursor: pointer;
   }
   .theme-toggle:hover { border-color: var(--accent); color: var(--accent-strong); background: var(--accent-soft); }
-
   .clock-chip {
     font-family: 'IBM Plex Mono', monospace;
     text-align: right;
@@ -300,6 +299,120 @@
   }
   .wide-panel { margin-bottom: 22px; }
   .grid .ledger-panel { margin-bottom: 0; }
+
+  .tracker-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 18px;
+  }
+  .tracker-month-picker {
+    flex: 0 0 158px;
+  }
+  .tracker-month-picker .cell-input {
+    background: var(--surface-tint);
+    border: 1px solid var(--rule);
+    border-radius: 5px;
+    padding: 6px 8px;
+  }
+  .tracker-metrics {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+  }
+  .tracker-stat {
+    background: var(--surface-tint);
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+  }
+  .tracker-stat strong,
+  .tracker-history-row strong {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 19px;
+    font-variant-numeric: tabular-nums;
+    color: var(--ink);
+  }
+  .tracker-saved {
+    border-color: var(--accent);
+    box-shadow: inset 3px 0 0 var(--accent);
+  }
+  .tracker-stat strong.income,
+  .tracker-history-row strong.income { color: var(--income); }
+  .tracker-stat strong.negative,
+  .tracker-history-row strong.negative { color: var(--expense-deep); }
+  .tracker-actual-income {
+    margin-top: 16px;
+    padding: 14px 16px;
+    background: var(--surface-tint);
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+  }
+  .tracker-actual-head,
+  .tracker-actual-foot {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 14px;
+  }
+  .tracker-actual-head .foot-note { margin: 5px 0 0; }
+  .tracker-actual-total { text-align: right; flex: 0 0 auto; }
+  .tracker-actual-total strong {
+    display: block;
+    margin-top: 5px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 19px;
+    font-variant-numeric: tabular-nums;
+  }
+  .tracker-actual-total strong.income { color: var(--income); }
+  .tracker-actual-total strong.negative { color: var(--expense-deep); }
+  .tracker-income-list { margin-top: 10px; }
+  .tracker-income-empty { margin: 0; padding: 4px 0 10px; }
+  .tracker-income-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 140px 26px;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--rule);
+  }
+  .tracker-actual-foot { align-items: center; margin-top: 12px; }
+  .tracker-history {
+    margin-top: 16px;
+    padding-top: 14px;
+    border-top: 1px solid var(--rule);
+  }
+  .tracker-history-list {
+    margin-top: 8px;
+    display: flex;
+    flex-direction: column;
+  }
+  .tracker-history-row {
+    display: grid;
+    grid-template-columns: minmax(125px, 1fr) repeat(3, minmax(110px, auto));
+    gap: 14px;
+    align-items: center;
+    padding: 9px 10px;
+    border-bottom: 1px solid var(--rule);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--ink-soft);
+  }
+  .tracker-history-row > :last-child { text-align: right; }
+  .tracker-history-row strong { font-size: 14px; }
+  @media (max-width: 640px) {
+    .tracker-head { flex-direction: column; gap: 4px; }
+    .tracker-month-picker { flex-basis: auto; width: 100%; }
+    .tracker-metrics { grid-template-columns: 1fr; }
+    .tracker-history-row { grid-template-columns: 1fr 1fr; gap: 7px 12px; }
+    .tracker-history-row > :last-child { text-align: left; }
+    .tracker-actual-head { flex-direction: column; }
+    .tracker-actual-total { text-align: left; }
+    .tracker-income-row { grid-template-columns: minmax(0, 1fr) 110px 26px; }
+  }
 
   .panel-head h2 {
     display: flex;
