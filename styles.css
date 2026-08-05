@@ -317,7 +317,7 @@
   }
   .tracker-metrics {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
     gap: 12px;
   }
   .tracker-stat {
@@ -813,6 +813,14 @@
     margin-top: 4px;
     padding-top: 14px;
     border-top: 1px solid var(--rule);
+  }
+  .monthly-spent-totals {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+  @media (max-width: 420px) {
+    .monthly-spent-totals { grid-template-columns: 1fr; }
   }
   .summary-label {
     display: block;

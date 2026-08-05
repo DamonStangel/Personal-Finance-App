@@ -1507,9 +1507,10 @@ function UpcomingBillsPanel({ monthlyItems, annualItems }) {
   );
 }
 
-function MonthlySavingsTracker({ income, spent, tracker, onMonthChange, onAddIncome, onChangeIncome, onRemoveIncome }) {
+function MonthlySavingsTracker({ income, spent, projectedSpent, tracker, onMonthChange, onAddIncome, onChangeIncome, onRemoveIncome }) {
   const activeMonth = tracker?.activeMonth || monthKeyFromDate();
-  const projectedSaved = money(income - spent);
+  const savedSoFar = money(income - spent);
+  const projectedSaved = money(income - projectedSpent);
   const actualIncomeItems = tracker?.actualIncomeByMonth?.[activeMonth] || [];
   const actualIncome = sum(actualIncomeItems);
   const actualSaved = money(actualIncome - spent);
@@ -1546,8 +1547,16 @@ function MonthlySavingsTracker({ income, spent, tracker, onMonthChange, onAddInc
           <span className="summary-label">Spent this month</span>
           <strong className="negative">{fmt(spent)}</strong>
         </div>
+        <div className="tracker-stat">
+          <span className="summary-label">Projected actual spent</span>
+          <strong className="negative">{fmt(projectedSpent)}</strong>
+        </div>
+        <div className="tracker-stat">
+          <span className="summary-label">Saved so far</span>
+          <strong className={savedSoFar < 0 ? "negative" : "income"}>{fmt(savedSoFar)}</strong>
+        </div>
         <div className="tracker-stat tracker-saved">
-          <span className="summary-label">Projected savings / saved so far</span>
+          <span className="summary-label">Projected savings</span>
           <strong className={projectedSaved < 0 ? "negative" : "income"}>{fmt(projectedSaved)}</strong>
         </div>
       </div>
@@ -2595,6 +2604,7 @@ const removeActualIncome = (id) => {
     // const totalExpenses = monthly + annualMonthly;
     const totalExpenses = allMonthly;
     const income = sum(data.incomeItems);
+    const projectedActualSpent = sum(data.extraItems.filter((item) => item.direction === "subtract"));
     const savings =
       data.savingsMode === "percent"
         ? income * ((parseFloat(data.savingsValue) || 0) / 100)
@@ -2631,6 +2641,7 @@ const removeActualIncome = (id) => {
       annualMonthly,
       totalExpenses,
       income,
+      projectedActualSpent,
       savings,
       makeIt,
       realChecking,
@@ -2840,8 +2851,16 @@ const removeActualIncome = (id) => {
                 </button>
               </div>
               <div className="monthly-spent-summary">
-                <span className="summary-label">Spent this month</span>
-                <span className="summary-value negative">{fmt(data.monthlySpent)}</span>
+                <div className="monthly-spent-totals">
+                  <div>
+                    <span className="summary-label">Spent this month</span>
+                    <span className="summary-value negative">{fmt(data.monthlySpent)}</span>
+                  </div>
+                  <div>
+                    <span className="summary-label">Projected actual spent this month</span>
+                    <span className="summary-value negative">{fmt(totals.projectedActualSpent)}</span>
+                  </div>
+                </div>
                 <div className="settle-row">
                   <button className="add-btn" onClick={clearMonthlySpent} disabled={(parseFloat(data.monthlySpent) || 0) === 0} title="Save the tracked month, then start the next month at $0 spent">
                     Clear monthly total
@@ -2879,6 +2898,7 @@ const removeActualIncome = (id) => {
       <MonthlySavingsTracker
         income={totals.income}
         spent={money(data.monthlySpent)}
+        projectedSpent={totals.projectedActualSpent}
         tracker={data.monthlySavingsTracker}
         onMonthChange={updateTrackingMonth}
         onAddIncome={addActualIncome}
