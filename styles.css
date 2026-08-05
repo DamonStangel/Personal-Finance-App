@@ -25,6 +25,7 @@
     --accent-haze: rgba(59, 142, 92, 0.045);
     --surface-tint: rgba(30, 107, 77, 0.055);
     --inactive-tint: rgba(30, 107, 77, 0.15);
+    --received-tint: rgba(47, 111, 94, 0.27);
     --progress-low: #9BCB4A;
     --progress-mid: #78AB45;
     --progress-high: #4F965F;
@@ -51,6 +52,7 @@
     --accent-haze: rgba(111, 191, 100, 0.045);
     --surface-tint: rgba(139, 203, 91, 0.09);
     --inactive-tint: rgba(139, 203, 91, 0.16);
+    --received-tint: rgba(111, 191, 158, 0.22);
     --progress-low: #C5EE78;
     --progress-mid: #9FD85B;
     --progress-high: #79C56C;
@@ -666,6 +668,10 @@
   .row.paid {
     background: var(--inactive-tint);
     opacity: 0.6;
+  }
+  .row.extra-row.paid.received {
+    background: var(--received-tint);
+    opacity: 0.72;
   }
   .row.paid .num-input,
   .row.paid .amount-field .dollar {

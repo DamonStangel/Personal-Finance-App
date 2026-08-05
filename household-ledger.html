@@ -449,13 +449,13 @@ function ExtraItemsTable({
       </div>
 
       {items.length === 0 && (
-        <div className="empty-row">No one-off items yet — log a car repair, a bonus, a big purchase, etc.</div>
+        <div className="empty-row">No transactions yet — log a car repair, a bonus, a big purchase, etc.</div>
       )}
 
       {sortedItems.map((item) => (
         <div 
           key={item.id}
-          className={`row extra-row ${draggingId === item.id ? "dragging" : ""} ${overId === item.id && draggingId && draggingId !== item.id ? "drag-over-target" : ""} ${item.paid ? "paid" : ""}`}
+          className={`row extra-row ${draggingId === item.id ? "dragging" : ""} ${overId === item.id && draggingId && draggingId !== item.id ? "drag-over-target" : ""} ${item.paid ? "paid" : ""} ${item.direction === "add" ? "received" : ""}`}
           onDragOver={(e) => {
             if (!draggingId) return;
             e.preventDefault();
@@ -570,7 +570,7 @@ function ExtraItemsTable({
       <div className="panel-foot">
           <div style={{display: "flex", gap: "8px", flexWrap: "wrap"}}>
               <button className="add-btn" onClick={onAdd}>
-                  + Add one-off item
+                  + Add transaction
               </button>
 
               <button
@@ -858,7 +858,7 @@ function AnnualBillsTable({
         <h2>Annual bills</h2>
         <p className="panel-sub">
           Things you pay once a year — we'll spread the cost across 12 months for you. Add an expected
-          due date, then click "Move →" when it's time to actually pay it; that copies it into One-off
+          due date, then click "Move →" when it's time to actually pay it; that copies it into Transactions &amp; cash flow
           spending & deposits (as unpaid) so you can track it there, and dims it here so you know it's
           already been handled this cycle.
         </p>
@@ -1091,7 +1091,7 @@ function MonthlyItemsTable({
           Fixed bills you know exactly, plus everyday estimates like groceries and gas. Set a due day
           (1–31) on any item to see it in "Bills due soon" above — exact for fixed bills, a rough guess
           for estimates. Click "Move →"
-          once you've actually paid an item; that copies it into One-off spending &amp; deposits (as
+          once you've actually paid an item; that copies it into Transactions &amp; cash flow (as
           unpaid) so you can track the real amount against checking/savings, and dims it here so its
           budgeted estimate stops being counted below. Use "Dim"/"Undim" on their own to mark something
           as handled without moving it, or to bring it back into the monthly total.
@@ -1523,7 +1523,7 @@ function MonthlySavingsTracker({ income, spent, projectedSpent, tracker, onMonth
           <h2>Monthly savings tracker</h2>
           <p className="panel-sub">
             Compare your planned income with the real deposits you receive. Spending updates automatically
-            when you mark one-off items as paid.
+            when you mark transactions as paid.
           </p>
         </div>
         <label className="tracker-month-picker">
@@ -2663,7 +2663,7 @@ const removeActualIncome = (id) => {
     { key: "fixed", label: "Fixed bills", value: totals.fixed, color: "var(--expense)" },
     { key: "variable", label: "Everyday estimate", value: totals.variable, color: "var(--expense-soft)" },
     ...(totals.dimmedMonthlyTotal > 0
-      ? [{ key: "dimmed", label: "Dimmed (tracked as one-off)", value: totals.dimmedMonthlyTotal, color: "var(--ink-soft)" }]
+      ? [{ key: "dimmed", label: "Dimmed (tracked as transaction)", value: totals.dimmedMonthlyTotal, color: "var(--ink-soft)" }]
       : []),
     { key: "annual", label: "Annual bills (÷12)", value: totals.annualMonthly, color: "var(--expense-deep)" },
     { key: "savings", label: "Savings", value: totals.savings, color: "var(--savings)" },
@@ -2773,7 +2773,7 @@ const removeActualIncome = (id) => {
         <div className="panel-head">
           <h2>Real balances</h2>
           <p className="panel-sub">
-            Enter your actual bank balances, then log one-off spending or deposits below. Check an item
+            Enter your actual bank balances, then log transactions below. Check an item
             and click "Paid" once it's actually happened — that's when it affects the balances here.
             Pending (unchecked) items are just a heads-up list and don't count yet.
           </p>
@@ -2874,7 +2874,7 @@ const removeActualIncome = (id) => {
           </div>
         </div>
 
-        <h3 className="sub-heading">One-off spending &amp; deposits</h3>
+        <h3 className="sub-heading">Transactions &amp; cash flow</h3>
         <p className="panel-sub small">
           Random purchases, surprise bills, bonuses, gifts — anything outside your regular budget. Check
           the box next to one or more items, then click "Paid" to apply them to the balances above.
@@ -3054,7 +3054,7 @@ const removeActualIncome = (id) => {
 
       <footer className="ledger-footer">
         Figures are stored privately and only visible to you. Annual bills are automatically divided by
-        12, and real balances combine your entered starting balance with the one-off items you log.
+        12, and real balances combine your entered starting balance with the transactions you log.
       </footer>
 
       <TransferModal
