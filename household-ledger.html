@@ -75,6 +75,7 @@ const defaultData = () => ({
   ],
   calculatorItems: [],
   calculatorOpen: true,
+  transactionsOpen: true,
   monthlySpent: 0,
   monthlySavingsTracker: {
     activeMonth: monthKeyFromDate(),
@@ -1842,7 +1843,7 @@ function ProjectionsPanel({ income, monthlyExpenses, currentSavings, projections
   );
 }
 
-function TransferModal({ open, amount, onAmountChange, onCancel, onConfirm, error, availableSavings }) {
+function TransferModal({ open, amount, onAmountChange, onCancel, onConfirm, error, fromAccount, availableAmount }) {
   const inputRef = useRef(null);
 
   useEffect(() => {
@@ -1872,7 +1873,9 @@ function TransferModal({ open, amount, onAmountChange, onCancel, onConfirm, erro
             ×
           </button>
         </div>
-        <p className="panel-sub small">Move money from savings into your checking / make-it money balance.</p>
+        <p className="panel-sub small">
+          Move money from {fromAccount === "savings" ? "savings into checking / make-it money" : "checking / make-it money into savings"}.
+        </p>
 
         <div className="amount-field big modal-amount">
           <span className="dollar">$</span>
@@ -1887,7 +1890,7 @@ function TransferModal({ open, amount, onAmountChange, onCancel, onConfirm, erro
             onChange={(e) => onAmountChange(e.target.value)}
           />
         </div>
-        <p className="foot-note modal-available">Available in savings: {fmt(availableSavings)}</p>
+        <p className="foot-note modal-available">Available in {fromAccount === "savings" ? "savings" : "checking"}: {fmt(availableAmount)}</p>
 
         {error && <p className="warning modal-error">{error}</p>}
 
@@ -1896,7 +1899,7 @@ function TransferModal({ open, amount, onAmountChange, onCancel, onConfirm, erro
             Cancel
           </button>
           <button type="button" className="add-btn primary" onClick={onConfirm}>
-            Transfer to checking
+            Transfer to {fromAccount === "savings" ? "checking" : "savings"}
           </button>
         </div>
       </div>
@@ -1915,6 +1918,7 @@ function App() {
   const [undoSettle, setUndoSettle] = useState(null);
   const [undoMonthlySpent, setUndoMonthlySpent] = useState(null);
   const [transferOpen, setTransferOpen] = useState(false);
+  const [transferFrom, setTransferFrom] = useState("savings");
   const [transferAmount, setTransferAmount] = useState("");
   const [transferError, setTransferError] = useState("");
 
@@ -2029,6 +2033,7 @@ function App() {
         // Migration: default to expanded for saves made before the
         // collapsible item calculator existed.
         merged.calculatorOpen = typeof parsed.calculatorOpen === "boolean" ? parsed.calculatorOpen : true;
+        merged.transactionsOpen = typeof parsed.transactionsOpen === "boolean" ? parsed.transactionsOpen : true;
         // Migration: keep the stand-alone calculator list separate from any
         // balance-affecting records, including saves made before it existed.
         merged.calculatorItems = Array.isArray(parsed.calculatorItems)
@@ -2172,6 +2177,9 @@ function App() {
   };
   const toggleCalculatorOpen = () => {
     setData((d) => ({ ...d, calculatorOpen: !d.calculatorOpen }));
+  };
+  const toggleTransactionsOpen = () => {
+    setData((d) => ({ ...d, transactionsOpen: !d.transactionsOpen }));
   };
   const setCalculatorItemsDimmed = (ids, dimmed) => {
     if (!ids.length) return;
@@ -2453,6 +2461,27 @@ const confirmRunningBalances = () => {
   });
 };
 
+// Applies only the automatic shortfall coverage. This alternative confirmation
+// leaves a positive checking balance in checking instead of sweeping it away.
+const confirmCheckingBalance = () => {
+  setData((d) => {
+    const baseChecking = parseFloat(d.accounts.checking) || 0;
+    const baseSavings = parseFloat(d.accounts.savings) || 0;
+    const transfer = baseChecking < 0 ? Math.min(-baseChecking, Math.max(baseSavings, 0)) : 0;
+    if (transfer === 0) return d;
+
+    setUndoSettle({ accounts: d.accounts, extraItems: d.extraItems });
+    setUndoPaidExtraItems(null);
+    return {
+      ...d,
+      accounts: {
+        checking: money(baseChecking + transfer),
+        savings: money(baseSavings - transfer),
+      },
+    };
+  });
+};
+
 const undoSettleChange = () => {
   if (!undoSettle) return;
   setData((d) => ({ ...d, accounts: undoSettle.accounts, extraItems: undoSettle.extraItems }));
@@ -2553,9 +2582,10 @@ const removeActualIncome = (id) => {
     setData((d) => ({ ...d, accounts: { ...d.accounts, [key]: value } }));
   };
 
-  const openTransfer = () => {
+  const openTransfer = (fromAccount) => {
     setTransferAmount("");
     setTransferError("");
+    setTransferFrom(fromAccount);
     setTransferOpen(true);
   };
 
@@ -2567,20 +2597,22 @@ const removeActualIncome = (id) => {
 
   const submitTransfer = () => {
     const amt = money(transferAmount);
-    const availableSavings = parseFloat(data.accounts.savings) || 0;
+    const availableAmount = parseFloat(data.accounts[transferFrom]) || 0;
     if (!amt || amt <= 0) {
       setTransferError("Enter an amount greater than $0.");
       return;
     }
-    if (amt > availableSavings) {
-      setTransferError(`Only ${fmt(availableSavings)} available in savings.`);
+    if (amt > availableAmount) {
+      setTransferError(`Only ${fmt(availableAmount)} available in ${transferFrom}.`);
       return;
     }
+    const destination = transferFrom === "savings" ? "checking" : "savings";
     setData((d) => ({
       ...d,
       accounts: {
-        checking: money((parseFloat(d.accounts.checking) || 0) + amt),
-        savings: money((parseFloat(d.accounts.savings) || 0) - amt),
+        ...d.accounts,
+        [transferFrom]: money((parseFloat(d.accounts[transferFrom]) || 0) - amt),
+        [destination]: money((parseFloat(d.accounts[destination]) || 0) + amt),
       },
     }));
     closeTransfer();
@@ -2808,13 +2840,24 @@ const removeActualIncome = (id) => {
                 </span>
               )}
               <div className="settle-row">
+                <button type="button" className="add-btn small" onClick={() => openTransfer("checking")}>
+                  Transfer to Savings →
+                </button>
                 <button
                   className="add-btn"
                   onClick={confirmRunningBalances}
                   disabled={(parseFloat(data.accounts.checking) || 0) === 0 && !data.extraItems.some((item) => item.paid)}
-                  title="Commit the current running balances and set checking to $0; paid items stay in the list"
+                  title="Commit the current running balances, move any positive checking balance to savings, and set checking to $0"
                 >
                   Confirm balances &amp; clear
+                </button>
+                <button
+                  className="add-btn"
+                  onClick={confirmCheckingBalance}
+                  disabled={totals.transfer === 0}
+                  title="Commit automatic savings coverage for a negative checking balance without sweeping a positive balance into savings"
+                >
+                  Confirm checking balance
                 </button>
                 {undoSettle && (
                   <button className="add-btn" onClick={undoSettleChange}>
@@ -2846,7 +2889,7 @@ const removeActualIncome = (id) => {
                 <span className="transfer-note">↳ sent {fmt(totals.transfer)} to checking to cover the shortfall</span>
               )}
               <div className="settle-row">
-                <button type="button" className="add-btn small" onClick={openTransfer}>
+                <button type="button" className="add-btn small" onClick={() => openTransfer("savings")}>
                   Transfer to Checking →
                 </button>
               </div>
@@ -2874,25 +2917,41 @@ const removeActualIncome = (id) => {
           </div>
         </div>
 
-        <h3 className="sub-heading">Transactions &amp; cash flow</h3>
-        <p className="panel-sub small">
-          Random purchases, surprise bills, bonuses, gifts — anything outside your regular budget. Check
-          the box next to one or more items, then click "Paid" to apply them to the balances above.
-        </p>
-        <ExtraItemsTable
-          items={data.extraItems}
-          onChange={updateItem("extraItems")}
-          onAdd={addItem("extraItems", { name: "", account: "checking", direction: "subtract", dueDay: "", dueDate: "", amount: 0, paid: false })}
-          onRemove={removeExtraItem}
-          onClearAll={clearExtraItems}
-          onUndoClear={undoExtraItemsChange}
-          canUndoClear={!!undoExtraItems}
-          onMarkPaid={markExtraItemsPaid}
-          onMarkUnpaid={markExtraItemsUnpaid}
-          onUndoPaid={undoMarkPaid}
-          canUndoPaid={!!undoPaidExtraItems}
-          onReorder={reorderItems("extraItems")}
-        />
+        <div className="transactions-panel-head">
+          <h3 className="sub-heading">Transactions &amp; cash flow</h3>
+          <button
+            type="button"
+            className="collapse-toggle"
+            onClick={toggleTransactionsOpen}
+            aria-expanded={data.transactionsOpen}
+            title={data.transactionsOpen ? "Collapse transactions and cash flow" : "Expand transactions and cash flow"}
+          >
+            <span className={`collapse-arrow ${data.transactionsOpen ? "is-open" : ""}`} aria-hidden="true">▷</span>
+            {data.transactionsOpen ? "Collapse" : "Expand"}
+          </button>
+        </div>
+        {data.transactionsOpen && (
+          <React.Fragment>
+            <p className="panel-sub small">
+              Random purchases, surprise bills, bonuses, gifts — anything outside your regular budget. Check
+              the box next to one or more items, then click "Paid" to apply them to the balances above.
+            </p>
+            <ExtraItemsTable
+              items={data.extraItems}
+              onChange={updateItem("extraItems")}
+              onAdd={addItem("extraItems", { name: "", account: "checking", direction: "subtract", dueDay: "", dueDate: "", amount: 0, paid: false })}
+              onRemove={removeExtraItem}
+              onClearAll={clearExtraItems}
+              onUndoClear={undoExtraItemsChange}
+              canUndoClear={!!undoExtraItems}
+              onMarkPaid={markExtraItemsPaid}
+              onMarkUnpaid={markExtraItemsUnpaid}
+              onUndoPaid={undoMarkPaid}
+              canUndoPaid={!!undoPaidExtraItems}
+              onReorder={reorderItems("extraItems")}
+            />
+          </React.Fragment>
+        )}
       </section>
 
       <MonthlySavingsTracker
@@ -3064,7 +3123,8 @@ const removeActualIncome = (id) => {
         onCancel={closeTransfer}
         onConfirm={submitTransfer}
         error={transferError}
-        availableSavings={parseFloat(data.accounts.savings) || 0}
+        fromAccount={transferFrom}
+        availableAmount={parseFloat(data.accounts[transferFrom]) || 0}
       />
     </div>
   );

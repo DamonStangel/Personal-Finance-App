@@ -442,6 +442,14 @@
     border-top: 1px solid var(--rule);
     padding-top: 16px;
   }
+  .transactions-panel-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .transactions-panel-head .sub-heading { flex: 1; }
+  .transactions-panel-head .collapse-toggle { margin-top: 18px; }
 
   .balance-inputs {
     display: grid;
@@ -691,6 +699,11 @@
     gap: 8px;
     flex-wrap: wrap;
     margin-top: 10px;
+  }
+  .balance-inputs .settle-row .add-btn {
+    padding: 5px 10px;
+    font-size: 11px;
+    white-space: nowrap;
   }
 
   .row.dimmed {
