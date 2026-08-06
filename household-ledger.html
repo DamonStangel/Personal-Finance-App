@@ -2661,6 +2661,8 @@ const removeActualIncome = (id) => {
     const realChecking = baseChecking + transfer;
     const realSavings = baseSavings - transfer;
     const shortfall = realChecking < 0 ? -realChecking : 0;
+    const remainingProjectedSpent = money(projectedActualSpent - money(data.monthlySpent));
+    const projectedRunningSavings = money(realSavings - remainingProjectedSpent);
 
     return {
       fixed,
@@ -2674,6 +2676,8 @@ const removeActualIncome = (id) => {
       totalExpenses,
       income,
       projectedActualSpent,
+      remainingProjectedSpent,
+      projectedRunningSavings,
       savings,
       makeIt,
       realChecking,
@@ -2881,10 +2885,20 @@ const removeActualIncome = (id) => {
               />
             </div>
             <div className="balance-current">
-              <span className="summary-label">Current running balance</span>
-              <span className={`summary-value ${totals.realSavings < 0 ? "negative" : "savings"}`}>
-                {fmt(totals.realSavings)}
-              </span>
+              <div className="running-balance-totals">
+                <div>
+                  <span className="summary-label">Current running balance</span>
+                  <span className={`summary-value ${totals.realSavings < 0 ? "negative" : "savings"}`}>
+                    {fmt(totals.realSavings)}
+                  </span>
+                </div>
+                <div>
+                  <span className="summary-label">Projected running balance</span>
+                  <span className={`summary-value ${totals.projectedRunningSavings < 0 ? "negative" : "savings"}`}>
+                    {fmt(totals.projectedRunningSavings)}
+                  </span>
+                </div>
+              </div>
               {totals.transfer > 0 && (
                 <span className="transfer-note">↳ sent {fmt(totals.transfer)} to checking to cover the shortfall</span>
               )}
@@ -2902,6 +2916,7 @@ const removeActualIncome = (id) => {
                   <div>
                     <span className="summary-label">Projected actual spent this month</span>
                     <span className="summary-value negative">{fmt(totals.projectedActualSpent)}</span>
+                    <span className="projected-spend-difference">Diff: {fmt(totals.remainingProjectedSpent)}</span>
                   </div>
                 </div>
                 <div className="settle-row">

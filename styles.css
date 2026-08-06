@@ -827,6 +827,16 @@
     flex-direction: column;
     gap: 10px;
   }
+  .running-balance-totals {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+  .running-balance-totals > div {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
   .savings-summary { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--rule); }
   .monthly-spent-summary {
     margin-top: 4px;
@@ -838,8 +848,17 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 12px;
   }
+  .projected-spend-difference {
+    display: block;
+    margin-top: 3px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    color: var(--ink-soft);
+    font-variant-numeric: tabular-nums;
+  }
   @media (max-width: 420px) {
-    .monthly-spent-totals { grid-template-columns: 1fr; }
+    .monthly-spent-totals,
+    .running-balance-totals { grid-template-columns: 1fr; }
   }
   .summary-label {
     display: block;
