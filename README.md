@@ -5,7 +5,7 @@ I created a Personal Finance Application to help track monthly spending and keep
 
   1. Clone repo or download folder as zip using the green code dropdown button.
   2. Extract files into a file location - preferably not in the downloads folder.
-  3. After the extract is complete, navigate and find the household-ledger.html file in file explorer.
+  3. After the extract is complete, navigate and find the index.html file in file explorer.
   4. Double click to open the html file in a browser in order to use it locally.
   5. The webpage is pretty straight forward to use. Put your finance data in the relevant categories to see values come back related to the section you are viewing. (E.g. Enter 4 different fixed monthly bills and a few estimate monthly bills. Near the bottom of that section it will tell you total for each fixed/estimate and also the overall total.)
 
