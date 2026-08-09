@@ -1528,7 +1528,7 @@ function MonthlySavingsTracker({ income, spent, projectedSpent, tracker, onMonth
           </p>
         </div>
         <label className="tracker-month-picker">
-          <span className="field-label">Tracking month</span>
+          <span className="field-label" title="Choose the month whose actual income entries you are tracking">Tracking month</span>
           <input
             className="cell-input"
             type="month"
@@ -1541,23 +1541,23 @@ function MonthlySavingsTracker({ income, spent, projectedSpent, tracker, onMonth
 
       <div className="tracker-metrics">
         <div className="tracker-stat">
-          <span className="summary-label">Projected monthly income</span>
+          <span className="summary-label" title="Total of the income sources configured in the income section">Projected monthly income</span>
           <strong>{fmt(income)}</strong>
         </div>
         <div className="tracker-stat">
-          <span className="summary-label">Spent this month</span>
+          <span className="summary-label" title="Total of transactions marked Paid during the current tracking cycle">Spent this month</span>
           <strong className="negative">{fmt(spent)}</strong>
         </div>
         <div className="tracker-stat">
-          <span className="summary-label">Projected actual spent</span>
+          <span className="summary-label" title="Total of every spending transaction listed in Transactions & cash flow, whether paid or unpaid">Projected actual spent</span>
           <strong className="negative">{fmt(projectedSpent)}</strong>
         </div>
         <div className="tracker-stat">
-          <span className="summary-label">Saved so far</span>
+          <span className="summary-label" title="Projected monthly income minus transactions already marked Paid">Saved so far</span>
           <strong className={savedSoFar < 0 ? "negative" : "income"}>{fmt(savedSoFar)}</strong>
         </div>
         <div className="tracker-stat tracker-saved">
-          <span className="summary-label">Projected savings</span>
+          <span className="summary-label" title="Projected monthly income minus all listed spending transactions, including unpaid ones">Projected savings</span>
           <strong className={projectedSaved < 0 ? "negative" : "income"}>{fmt(projectedSaved)}</strong>
         </div>
       </div>
@@ -1565,11 +1565,11 @@ function MonthlySavingsTracker({ income, spent, projectedSpent, tracker, onMonth
       <div className="tracker-actual-income">
         <div className="tracker-actual-head">
           <div>
-            <span className="summary-label">Actual {formatMonthLabel(activeMonth)} income</span>
+            <span className="summary-label" title="Income you manually enter as it is actually received during this selected month">Actual {formatMonthLabel(activeMonth)} income</span>
             <p className="foot-note">Add each paycheck, deposit, or other income received during this month.</p>
           </div>
           <div className="tracker-actual-total">
-            <span className="summary-label">Actual savings</span>
+            <span className="summary-label" title="Actual income received for this month minus transactions marked Paid">Actual savings</span>
             <strong className={actualSaved < 0 ? "negative" : "income"}>{fmt(actualSaved)}</strong>
           </div>
         </div>
@@ -1605,20 +1605,20 @@ function MonthlySavingsTracker({ income, spent, projectedSpent, tracker, onMonth
         </div>
         <div className="tracker-actual-foot">
           <button type="button" className="add-btn" onClick={onAddIncome}>+ Add actual income</button>
-          <span className="foot-note">Received so far: {fmt(actualIncome)}</span>
+          <span className="foot-note" title="Total of the actual income entries above">Received so far: {fmt(actualIncome)}</span>
         </div>
       </div>
 
       {history.length > 0 && (
         <div className="tracker-history">
-          <span className="summary-label">Completed months</span>
+          <span className="summary-label" title="Months saved when the monthly spending total was cleared">Completed months</span>
           <div className="tracker-history-list">
             {history.map((record) => (
               <div className="tracker-history-row" key={record.month}>
                 <span>{formatMonthLabel(record.month)}</span>
-                <span>Actual income {fmt(record.actualIncome)}</span>
-                <span>Spent {fmt(record.spent)}</span>
-                <strong className={record.actualSaved < 0 ? "negative" : "income"}>{fmt(record.actualSaved)}</strong>
+                <span title="Actual income recorded for this completed month">Actual income {fmt(record.actualIncome)}</span>
+                <span title="Spending recorded as paid for this completed month">Spent {fmt(record.spent)}</span>
+                <strong title="Actual income minus paid spending for this completed month" className={record.actualSaved < 0 ? "negative" : "income"}>{fmt(record.actualSaved)}</strong>
               </div>
             ))}
           </div>
