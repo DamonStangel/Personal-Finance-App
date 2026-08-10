@@ -1154,7 +1154,8 @@
     grid-template-columns: 22px 22px minmax(0, 1fr) 28px;
     grid-template-areas:
       "drag check name remove"
-      "type type due amount"
+      "type type type type"
+      "due due amount amount"
       "action action action action";
   }
   .row.monthly-row > :nth-child(1) { grid-area: drag; }
@@ -1213,6 +1214,11 @@
   .row.monthly-row .type-toggle button,
   .row.monthly-row .add-btn,
   .row.annual-row .add-btn { padding: 4px 6px; }
+  .row.monthly-row > *,
+  .row.annual-row > *,
+  .row.extra-row > *,
+  .row.calculator-row > * { min-width: 0; }
+  .row.monthly-row .type-toggle { width: 100%; }
   .row.monthly-row .due-day-cell { align-items: flex-start; }
   .row.monthly-row .due-day-field { justify-content: flex-start; }
   .row.monthly-row .amount-field,
