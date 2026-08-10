@@ -1124,6 +1124,108 @@
   transform: rotate(90deg);
 }
 
+/* Phone layout: keep dense ledger rows scannable without turning each item
+   into a full-screen card. */
+@media (max-width: 640px) {
+  .ledger-root { padding: 16px 12px 30px; }
+  .ledger-panel { padding: 14px 12px 12px; margin-bottom: 14px; }
+  .panel-head h2 { font-size: 18px; }
+  .panel-sub { font-size: 12px; line-height: 1.35; margin-bottom: 12px; }
+
+  .tracker-month-picker,
+  .tracker-month-picker .cell-input { min-width: 0; max-width: 100%; }
+  .tracker-month-picker .cell-input { font-size: 16px; }
+  .tracker-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .tracker-stat { padding: 10px 11px; gap: 5px; }
+  .tracker-stat strong { font-size: 16px; }
+  .tracker-stat:last-child { grid-column: 1 / -1; }
+  .tracker-actual-income { margin-top: 12px; padding: 11px; }
+  .tracker-actual-head .foot-note { font-size: 11px; line-height: 1.35; }
+
+  .row.extra-row,
+  .row.calculator-row,
+  .row.annual-row,
+  .row.monthly-row {
+    gap: 6px 8px;
+    padding: 8px;
+    margin-bottom: 6px;
+  }
+  .row.monthly-row {
+    grid-template-columns: 22px 22px minmax(0, 1fr) 28px;
+    grid-template-areas:
+      "drag check name remove"
+      "type type due amount"
+      "action action action action";
+  }
+  .row.monthly-row > :nth-child(1) { grid-area: drag; }
+  .row.monthly-row > :nth-child(2) { grid-area: check; }
+  .row.monthly-row > :nth-child(3) { grid-area: name; }
+  .row.monthly-row > :nth-child(4) { grid-area: type; }
+  .row.monthly-row > :nth-child(5) { grid-area: due; }
+  .row.monthly-row > :nth-child(6) { grid-area: amount; }
+  .row.monthly-row > :nth-child(7) { grid-area: action; }
+  .row.monthly-row > :nth-child(8) { grid-area: remove; }
+
+  .row.annual-row {
+    grid-template-columns: 22px 22px minmax(0, 1fr) 28px;
+    grid-template-areas:
+      "drag check name remove"
+      "date date amount amount"
+      "action action action action";
+  }
+  .row.annual-row > :nth-child(1) { grid-area: drag; }
+  .row.annual-row > :nth-child(2) { grid-area: check; }
+  .row.annual-row > :nth-child(3) { grid-area: name; }
+  .row.annual-row > :nth-child(4) { grid-area: date; }
+  .row.annual-row > :nth-child(5) { grid-area: amount; }
+  .row.annual-row > :nth-child(6) { grid-area: action; }
+  .row.annual-row > :nth-child(7) { grid-area: remove; }
+
+  .row.extra-row {
+    grid-template-columns: 22px 22px minmax(0, 1fr) 28px;
+    grid-template-areas:
+      "drag check name remove"
+      "account account direction direction"
+      "date date amount amount";
+  }
+  .row.extra-row > :nth-child(1) { grid-area: drag; }
+  .row.extra-row > :nth-child(2) { grid-area: check; }
+  .row.extra-row > :nth-child(3) { grid-area: name; }
+  .row.extra-row > :nth-child(4) { grid-area: account; }
+  .row.extra-row > :nth-child(5) { grid-area: direction; }
+  .row.extra-row > :nth-child(6) { grid-area: date; }
+  .row.extra-row > :nth-child(7) { grid-area: amount; }
+  .row.extra-row > :nth-child(8) { grid-area: remove; }
+
+  .row.calculator-row {
+    grid-template-columns: 22px 22px minmax(0, 1fr) 28px;
+    grid-template-areas:
+      "drag check name remove"
+      "operation operation amount amount";
+  }
+  .row.calculator-row > :nth-child(1) { grid-area: drag; }
+  .row.calculator-row > :nth-child(2) { grid-area: check; }
+  .row.calculator-row > :nth-child(3) { grid-area: name; }
+  .row.calculator-row > :nth-child(4) { grid-area: operation; }
+  .row.calculator-row > :nth-child(5) { grid-area: amount; }
+  .row.calculator-row > :nth-child(6) { grid-area: remove; }
+
+  .row.monthly-row .type-toggle button,
+  .row.monthly-row .add-btn,
+  .row.annual-row .add-btn { padding: 4px 6px; }
+  .row.monthly-row .due-day-cell { align-items: flex-start; }
+  .row.monthly-row .due-day-field { justify-content: flex-start; }
+  .row.monthly-row .amount-field,
+  .row.annual-row .amount-field,
+  .row.extra-row .amount-field,
+  .row.calculator-row .amount-field { min-width: 0; }
+  .row.monthly-row .num-input,
+  .row.annual-row .num-input,
+  .row.extra-row .num-input,
+  .row.calculator-row .num-input { font-size: 14px; }
+  .row.extra-row .mini-select { padding: 4px 7px; }
+}
+
 /* Transfer modal (savings -> checking) */
 .modal-overlay {
   position: fixed;
