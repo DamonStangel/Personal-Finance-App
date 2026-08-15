@@ -9,6 +9,9 @@ I created a Personal Finance Application to help track monthly spending and keep
   4. Double click to open the html file in a browser in order to use it locally.
   5. The webpage is pretty straight forward to use. Put your finance data in the relevant categories to see values come back related to the section you are viewing. (E.g. Enter 4 different fixed monthly bills and a few estimate monthly bills. Near the bottom of that section it will tell you total for each fixed/estimate and also the overall total.)
 
+  6. **OR USE THE GIT PAGES LINK:**
+  https://damonstangel.github.io/Personal-Finance-App/
+
 Snippet of default app:
 
 <img width="1431" height="1250" alt="image" src="https://github.com/user-attachments/assets/4d9c8184-ba51-4099-bcc3-6b416ca7f724" />
